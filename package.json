@@ -1,0 +1,28 @@
+{
+  "name": "disrupt-bot",
+  "version": "0.0.1",
+  "description": "A Facebook Messenger chatbot for the QUT DISRUPT17 exhibition.",
+  "main": "disrupt-bot.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smhdale/disrupt-bot.git"
+  },
+  "keywords": [
+    "disrupt",
+    "ivd",
+    "design",
+    "qut"
+  ],
+  "author": "Samuel Dale",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/smhdale/disrupt-bot/issues"
+  },
+  "homepage": "https://github.com/smhdale/disrupt-bot#readme",
+  "devDependencies": {
+    "body-parser": "^1.18.2",
+    "express": "^4.16.2",
+    "https": "^1.0.0",
+    "request": "^2.83.0"
+  }
+}
