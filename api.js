@@ -19,32 +19,66 @@ function post (endpoint, body) {
   }
 }
 
-module.exports = {
-  sendMessage (messageData) {
-    let options = post(ENDPOINT + 'me/messages', messageData)
+// Try and extract error out of Request response
+function extractError (resp) {
+  let body = JSON.parse(resp.body)
+  if (body.hasOwnProperty('error') && body.error.hasOwnProperty('message')) {
+    return body.error.message
+  }
+  return ''
+}
+
+function sendMessage (messageData) {
+  let options = post(ENDPOINT + `me/messages`, messageData)
+
+  return new Promise((resolve, reject) => {
     request(options, (err, resp, body) => {
       if (!err && resp.statusCode === 200) {
         // Message sent successfully!
-        console.log(`Message sent to user ID ${body.recipient_id}.`)
+        resolve(`Message sent to user ID ${body.recipient_id}.`)
       } else {
-        console.error(`Message send failure.`)
-        console.error(resp)
-        console.error(err)
+        let e = extractError(resp)
+        reject(`Message send failure: ${e}`)
+      }
+    })
+  })
+}
+
+module.exports = {
+  sendTextMessage (fbid, messageText) {
+    return sendMessage({
+      recipient: { id: fbid },
+      message: { text: messageText }
+    })
+  },
+
+  sendPictureMessage (fbid, url) {
+    return sendMessage({
+      recipient: { id: fbid },
+      message: {
+        attachment: {
+          type: 'image',
+          payload: { url: url }
+        }
       }
     })
   },
 
   lookupUser (fbid) {
     let options = get(ENDPOINT + fbid, {
-      fields: 'first_name,last_name,picture'
+      fields: 'first_name,last_name,profile_pic'
     })
-    request(options, (err, resp, body) => {
-      if (!err && resp.statusCode === 200) {
-        // User details downloaded
-        console.dir(body)
-      } else {
-        console.error('User lookup failed.')
-      }
+
+    return new Promise((resolve, reject) => {
+      request(options, (err, resp, body) => {
+        if (!err && resp.statusCode === 200) {
+          // User details downloaded
+          resolve(JSON.parse(body))
+        } else {
+          let e = extractError(resp)
+          reject(`User lookup failed: ${e}`)
+        }
+      })
     })
   }
 }

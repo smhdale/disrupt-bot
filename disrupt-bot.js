@@ -4,6 +4,7 @@ const bodyParser = require('body-parser')
 const fs = require('fs')
 
 const api = require('./api')
+const db = require('./db')
 
 /**
  * Message handling
@@ -21,18 +22,35 @@ function handleMessageReceived (event) {
   const messageText = message.text
   const messageAttachments = message.attachments
 
-  if (messageText) {
-    sendTextMessage(senderID, `You sent: ${messageText}`)
-  }
+  // Get sender's profile details
+  getUser(senderID).then(user => {
+    if (messageText) {
+      api.sendTextMessage(senderID, `Hello, ${user.first_name} ${user.last_name}! Is this you?`).then(() => {
+        return api.sendPictureMessage(senderID, user.profile_pic)
+      }).catch(console.error)
+    }
+  }).catch(console.error)
 }
 
-function sendTextMessage (recipientID, messageText) {
-  let message = {
-    recipient: { id: recipientID },
-    message: { text: messageText }
-  }
+/**
+ * User account handling
+ */
 
-  api.sendMessage(message)
+function getUser (fbid) {
+  return new Promise((resolve, reject) => {
+    db.getUser(fbid).then(user => {
+      if (user !== null) {
+        // User exists in DB
+        resolve(user)
+      } else {
+        // User doesn't exist!
+        api.lookupUser(fbid).then(user => {
+          db.addUser(user).catch(console.error)
+          resolve(user)
+        }).catch(reject)
+      }
+    }).catch(reject)
+  })
 }
 
 /**
