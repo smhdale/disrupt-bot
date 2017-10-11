@@ -5,6 +5,8 @@ const fs = require('fs')
 
 const api = require('./api')
 const db = require('./db')
+const paths = require('./paths')
+const disrupt = require('./disrupt')
 
 /**
  * Message handling
@@ -24,10 +26,16 @@ function handleMessageReceived (event) {
 
   // Get sender's profile details
   getUser(senderID).then(user => {
-    if (messageText) {
-      api.sendTextMessage(senderID, `Hello, ${user.first_name} ${user.last_name}! Is this you?`).then(() => {
-        return api.sendPictureMessage(senderID, user.profile_pic)
+    // Check if the user asked to be disrupted
+    if (messageText.toLowerCase().indexOf('disrupt me') > -1) {
+      api.sendTextMessage(senderID, 'Working on that...').catch(console.error)
+
+      // Create disrupted image
+      disrupt.disruptImage(senderID).then(filename => {
+        return api.sendPictureMessage(senderID, paths.serve(filename))
       }).catch(console.error)
+    } else {
+      api.sendTextMessage(senderID, `I'm sorry, ${user.first_name}, I'm afraid I can't do that.`).catch(console.error)
     }
   }).catch(console.error)
 }
@@ -36,6 +44,8 @@ function handleMessageReceived (event) {
  * User account handling
  */
 
+// Attempt to get a user from the database, then
+// fallback to the Graph API if not found
 function getUser (fbid) {
   return new Promise((resolve, reject) => {
     db.getUser(fbid).then(user => {
@@ -66,6 +76,7 @@ const AUTH = {
 }
 
 APP.use(bodyParser.json())
+APP.use(express.static('images'))
 
 APP.get('/webhook', (req, res) => {
   if (req.query['hub.mode'] === 'subscribe' && req.query['hub.verify_token'] === VERIFY_TOKEN) {

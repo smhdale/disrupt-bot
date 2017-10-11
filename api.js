@@ -1,4 +1,6 @@
 const request = require('request')
+const fs = require('fs')
+const paths = require('./paths')
 
 const ENDPOINT = 'https://graph.facebook.com/v2.6/'
 const ACCESS_TOKEN = 'EAAOXIsHFTr4BAPsTeHYjC3e59YXU7QwyQjL7JIhkLpHZBkZCT8hsAYeKDpQv4fl3yDZCu7EzWcznZCAwKHXgG6MZCZCj09T1ZCUoskpKHhlIQI9J3KZBZAvpaInurSeVs2ZBQWm0FZCjhcNvM7Pfo0XYBkyNdC9ujdbtC9UtwIGpr7YuaWfZCpHYdu1W'
@@ -21,11 +23,19 @@ function post (endpoint, body) {
 
 // Try and extract error out of Request response
 function extractError (resp) {
-  let body = JSON.parse(resp.body)
-  if (body.hasOwnProperty('error') && body.error.hasOwnProperty('message')) {
-    return body.error.message
+  try {
+    let body
+    if (typeof resp.body === 'object') {
+      body = resp.body
+    } else {
+      body = JSON.parse(resp.body)
+    }
+    if (body.hasOwnProperty('error') && body.error.hasOwnProperty('message')) {
+      return body.error.message
+    }
+  } catch (e) {
+    return JSON.stringify(resp)
   }
-  return ''
 }
 
 function sendMessage (messageData) {
@@ -73,7 +83,16 @@ module.exports = {
       request(options, (err, resp, body) => {
         if (!err && resp.statusCode === 200) {
           // User details downloaded
-          resolve(JSON.parse(body))
+          let data = JSON.parse(body)
+
+          // Download and store profile pic locally
+          let picLocal = paths.image(`${fbid}.jpg`)
+          request(data.profile_pic)
+            .pipe(fs.createWriteStream(picLocal))
+            .on('close', () => {
+              data.pic_local = picLocal
+              resolve(data)
+            })
         } else {
           let e = extractError(resp)
           reject(`User lookup failed: ${e}`)

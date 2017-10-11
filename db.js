@@ -1,11 +1,11 @@
 const db = require('nedb')
+const paths = require('./paths')
 
 /**
  * Database setup
  */
 
-const dbPath = dbName => `data/${dbName}`
-const dbUsers = new db({ filename: dbPath('users'), autoload: true })
+const dbUsers = new db({ filename: paths.db('users'), autoload: true })
 
 // Compact database every hour
 dbUsers.persistence.setAutocompactionInterval(3600000)
