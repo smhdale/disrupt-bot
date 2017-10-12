@@ -9,12 +9,25 @@ const paths = require('./paths')
 const disrupt = require('./disrupt')
 
 /**
+ * Exhibition info
+ */
+
+const MONTHS = [ 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December' ]
+
+const EXHIBITION = new function () {
+  this.name = 'DISRUPT'
+  this.date = new Date(2017, 10, 22)
+  this.dateString = dateString(this.date)
+  this.venue = 'QUT Creative Industries Precinct'
+  this.location = '29 Musk Avenue, Kelvin Grove'
+  this.locationLink = 'https://www.google.com/maps/place/QUT+Kelvin+Grove+Campus'
+}
+
+/**
  * Dates
  */
 
-const EXHIBITION_DATE = new Date(2017, 10, 22)
-
-function dateString (date) {
+function dateStamp (date) {
   return [
     date.getFullYear(),
     date.getMonth() + 1,
@@ -22,15 +35,46 @@ function dateString (date) {
   ].map(_ => _.toString()).join('-')
 }
 
+function dateString (date) {
+  return MONTHS[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear()
+}
+
+function pluralise (n, str) {
+  return (n === 1 ? str : str + 's')
+}
+
+function daysToExhibition () {
+  let oneDay = 24*60*60*1000
+  let now = new Date()
+  now.setHours(0, 0, 0)
+
+  return Math.ceil((EXHIBITION.date.getTime() - now.getTime()) / oneDay)
+}
+
 // Returns -1 for days before exhibition day, 0 for exhibition day, 1 for days after
 function exhibitionDayDiff () {
   let now = new Date()
   // Is it today?
-  if (dateString(now) === dateString(EXHIBITION_DATE)) {
+  if (dateStamp(now) === dateStamp(EXHIBITION.date)) {
     return 0
   } else {
-    let diff = now - EXHIBITION_DATE
+    let diff = now - EXHIBITION.date
     return diff / Math.abs(diff)
+  }
+}
+
+// Takes three tense strings and returns the one
+// relevant to the exhibition date
+function handleTense (before, dayOf, after) {
+  switch (exhibitionDayDiff()) {
+    case -1:
+      return before
+    case 0:
+      return dayOf
+    case 1:
+      return after
+    default:
+      return ''
   }
 }
 
@@ -58,24 +102,36 @@ function handleMessageReceived (event) {
   const nlpGreeting = getNLPEntity(message.nlp, 'wit/greetings')
   const nlpIntent = getNLPEntity(message.nlp, 'intent')
 
+  const confidenceThreshold = 0.75
+
   // Get sender's profile details
   getUser(senderID).then(user => {
-    switch (nlpIntent) {
-      case 'disrupt_user':
-        // Disrupt the user's profile picture and send them an animated .gif
-        return doProfileDisrupt(senderID)
+    if (nlpIntent && nlpIntent.confidence > confidenceThreshold) {
+      switch (nlpIntent.value) {
+        case 'disrupt_user':
+          // Disrupt the user's profile picture and send them an animated .gif
+          return doProfileDisrupt(senderID)
 
-      case 'exhibition_time':
-        // Send info about the date and time of the exhibition
-        return sendExhibitionDate(senderID)
+        case 'exhibition_time':
+          // Send info about the date and time of the exhibition
+          return sendExhibitionDate(senderID)
 
-      case 'exhibition_countdown':
-        // Send number of days until exhibition starts,
-        // handling day-of and days after
-        return api.sendTextMessage(senderID, `I'm sorry, ${user.first_name}, I'm afraid I can't do that.`)
+        case 'exhibition_countdown':
+          // Send number of days until exhibition starts,
+          // handling day-of and days after
+          return sendExhibitionCountdown(senderID)
 
-      default:
-        return api.sendTextMessage(senderID, `I'm sorry, ${user.first_name}, I'm afraid I can't do that.`)
+        case 'exhibition_location':
+          // Send the location of the exhibition
+          return sendExhibitionLocation(senderID)
+
+        default:
+          // Intent not handled
+          return sendFallbackMessage(senderID)
+      }
+    } else {
+      // Bot isn't confident enough with message intent
+      return sendFallbackMessage(senderID)
     }
   }).catch(console.error)
 }
@@ -84,26 +140,53 @@ function handleMessageReceived (event) {
  * Informs the user about what date the exhibition is happening on
  */
 function sendExhibitionDate (fbid) {
-  let date = ' on the 22nd of November, 2017.'
-  switch (exhibitionDayDiff()) {
-    case -1:
-      date = 'will be taking place' + date
-      break
-    case 1:
-      date = 'took place' + date
-      break
-    default:
-      date = 'is happening today!'
-      break
-  }
-  return api.sendTextMessage(senderID, `The QUT DISRUPT grad show ${date}`)
+  let date = handleTense(
+    `will take place on ${EXHIBITION.dateString}.`,
+    'is happening today!',
+    `took place on ${EXHIBITION.dateString}.`
+  )
+  return api.sendTextMessage(fbid, `The QUT ${EXHIBITION.name} grad show ${date}`)
 }
 
 /**
  * Gives a countdown of days until the grad show
  */
 function sendExhibitionCountdown (fbid) {
+  let days = daysToExhibition()
+  let message
 
+  // Special case for when exhibition is 0tomorrow
+  if (days === 1) {
+    message = 'The wait is almost over. Tomorrow, we DISRUPT.'
+  } else {
+    message = handleTense(
+      `${days} ${pluralise(days, 'day')} remain until ${EXHIBITION.name}. Be prepared.`,
+      'The wait is over. Today, we DISRUPT.',
+      `It has been ${pluralise(-days, 'day')} days since ${EXHIBITION.name}.`
+    )
+  }
+
+  return api.sendTextMessage(fbid, message)
+}
+
+/**
+ * Returns the location of the DISRUPT exhibition, along with
+ * a link to Google Maps
+ */
+function sendExhibitionLocation (fbid) {
+  let tensePart = handleTense(
+    'will be held',
+    'is happening today',
+    'was held'
+  )
+
+  let locationMessage = `The ${EXHIBITION.name} grad show ${tensePart} at the ${EXHIBITION.venue}, ${EXHIBITION.location}.`
+  let locationLinkMessage = `Here it is on a map: ${EXHIBITION.locationLink}`
+
+  // Send two messages because why not!
+  return api.sendTextMessage(fbid, locationMessage).then(() => {
+    return api.sendTextMessage(fbid, locationLinkMessage)
+  })
 }
 
 /**
@@ -119,6 +202,10 @@ function doProfileDisrupt (fbid) {
     progressMessage,
     disruptedProfile
   ])
+}
+
+function sendFallbackMessage (fbid) {
+  return api.sendTextMessage(fbid, 'Sorry, I\'m not sure how to help with that.')
 }
 
 /**
