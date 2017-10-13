@@ -2,6 +2,7 @@ const express = require('express')
 const https = require('https')
 const bodyParser = require('body-parser')
 const fs = require('fs')
+const Profane = require('profane')
 
 const api = require('./api')
 const db = require('./db')
@@ -11,13 +12,33 @@ const disrupt = require('./disrupt')
 const padZero = n => (n < 10 ? '0' : '') + n
 function log (str) {
   let now = new Date()
-  let y = now.getFullYear().toString().slice(2)
-  let m = padZero(now.getMonth() + 1)
-  let d = padZero(now.getDate())
-  let h = padZero(now.getHours())
-  let i = padZero(now.getMinutes())
 
-  console.log(`[${d}-${m}-${y} ${h}:${i}] ${str}`)
+  let date = [
+    now.getFullYear() % 100,
+    now.getMonth() + 1,
+    now.getDate()
+  ].map(padZero).join('-')
+
+  let time = [
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds()
+  ].map(padZero).join(':')
+
+  console.log(`[${date} ${time}] ${str}`)
+}
+
+const choose = arr => arr[Math.floor(Math.random() * arr.length)]
+
+/**
+ * Profanity filter
+ */
+
+const swearfilter = new Profane()
+swearfilter.addWord('ballsack', [ 'inappropriate' ])
+
+function detectProfanity (text) {
+  return Object.keys(swearfilter.getWordCounts(text)).length
 }
 
 /**
@@ -120,6 +141,10 @@ function handleMessageReceived (event) {
   getUser(senderID).then(user => {
     log(`Message received from ${user.first_name} ${user.last_name}: ${messageText}`)
 
+    if (detectProfanity(messageText)) {
+      return handleInappropriateMessage(user)
+    }
+
     if (nlpIntent && nlpIntent.confidence > confidenceThreshold) {
       switch (nlpIntent.value) {
         case 'disrupt_user':
@@ -207,15 +232,25 @@ function sendExhibitionLocation (fbid) {
  * Creates a disrupted, animated GIF version of the user's profile picture
  */
 function doProfileDisrupt (fbid) {
-  let progressMessage = api.sendTextMessage(senderID, 'Working on that...')
-  let disruptedProfile = disrupt.disruptImage(senderID).then(filename => {
-    return api.sendPictureMessage(senderID, paths.serve(filename))
+  let progressMessage = api.sendTextMessage(fbid, 'Working on that...')
+  let disruptedProfile = disrupt.disruptImage(fbid).then(filename => {
+    return api.sendPictureMessage(fbid, paths.serve(filename))
   })
 
   return Promise.all([
     progressMessage,
     disruptedProfile
   ])
+}
+
+function handleInappropriateMessage (user) {
+  let message = choose([
+    `That isn't very nice, ${user.first_name}.`,
+    `I don't like your tone, ${user.first_name}.`,
+    `Hey ${user.first_name}, think before saying that again.`
+  ])
+
+  return api.sendTextMessage(user.id, message)
 }
 
 function sendFallbackMessage (fbid) {
