@@ -8,6 +8,18 @@ const db = require('./db')
 const paths = require('./paths')
 const disrupt = require('./disrupt')
 
+const padZero = n => (n < 10 ? '0' : '') + n
+function log (str) {
+  let now = new Date()
+  let y = now.getFullYear().toString().slice(2)
+  let m = padZero(now.getMonth() + 1)
+  let d = padZero(now.getDate())
+  let h = padZero(now.getHours())
+  let i = padZero(now.getMinutes())
+
+  console.log(`[${d}-${m}-${y} ${h}:${i}] ${str}`)
+}
+
 /**
  * Exhibition info
  */
@@ -106,6 +118,8 @@ function handleMessageReceived (event) {
 
   // Get sender's profile details
   getUser(senderID).then(user => {
+    log(`Message received from ${user.first_name} ${user.last_name}: ${messageText}`)
+
     if (nlpIntent && nlpIntent.confidence > confidenceThreshold) {
       switch (nlpIntent.value) {
         case 'disrupt_user':
