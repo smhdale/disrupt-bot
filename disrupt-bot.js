@@ -2,7 +2,7 @@ const express = require('express')
 const https = require('https')
 const bodyParser = require('body-parser')
 const fs = require('fs')
-const Profane = require('profane')
+const swearjar = require('swearjar')
 
 const api = require('./api')
 const db = require('./db')
@@ -31,17 +31,6 @@ function log (str) {
 const choose = arr => arr[Math.floor(Math.random() * arr.length)]
 
 /**
- * Profanity filter
- */
-
-const swearfilter = new Profane()
-swearfilter.addWord('ballsack', [ 'inappropriate' ])
-
-function detectProfanity (text) {
-  return Object.keys(swearfilter.getWordCounts(text)).length
-}
-
-/**
  * Exhibition info
  */
 
@@ -49,8 +38,10 @@ const MONTHS = [ 'January', 'February', 'March', 'April', 'May', 'June', 'July',
 
 const EXHIBITION = new function () {
   this.name = 'DISRUPT'
-  this.date = new Date(2017, 10, 22)
-  this.dateString = dateString(this.date)
+  this.startDate = new Date(2017, 10, 22)
+  this.endDate = new Date(2017, 10, 23)
+  this.daySpan = Math.abs(daysBetween(this.startDate, this.endDate)) + 1
+  this.dateString = dateString(this.startDate)
   this.venue = 'QUT Creative Industries Precinct'
   this.location = '29 Musk Avenue, Kelvin Grove'
   this.locationLink = 'https://www.google.com/maps/place/QUT+Kelvin+Grove+Campus'
@@ -68,32 +59,42 @@ function dateStamp (date) {
   ].map(_ => _.toString()).join('-')
 }
 
-function dateString (date) {
-  return MONTHS[date.getMonth()] + ' ' + date.getDate() + ', ' + date.getFullYear()
+function dateString (date, includeYear = true) {
+  let str = MONTHS[date.getMonth()] + ' ' + date.getDate()
+  if (includeYear) {
+    str += ', ' + date.getFullYear()
+  }
+  return str
 }
 
 function pluralise (n, str) {
-  return (n === 1 ? str : str + 's')
+  let addS = (str.charAt(str.length - 1) !== 's')
+  let pluralForm = (addS ? str + 's' : str.slice(0, str.length - 1))
+  return (n === 1 ? str : pluralForm)
+}
+
+function daysBetween (d1, d2) {
+  let oneDay = 24*60*60*1000
+  return Math.ceil((d2.getTime() - d1.getTime()) / oneDay)
 }
 
 function daysToExhibition () {
-  let oneDay = 24*60*60*1000
   let now = new Date()
   now.setHours(0, 0, 0)
+  return daysBetween(now, EXHIBITION.startDate)
+}
 
-  return Math.ceil((EXHIBITION.date.getTime() - now.getTime()) / oneDay)
+function dayDiff (d1, d2) {
+  if (dateStamp(d1) === dateStamp(d2)) {
+    return 0
+  }
+  let diff = d1 - d2
+  return diff / Math.abs(diff)
 }
 
 // Returns -1 for days before exhibition day, 0 for exhibition day, 1 for days after
 function exhibitionDayDiff () {
-  let now = new Date()
-  // Is it today?
-  if (dateStamp(now) === dateStamp(EXHIBITION.date)) {
-    return 0
-  } else {
-    let diff = now - EXHIBITION.date
-    return diff / Math.abs(diff)
-  }
+  return dayDiff(new Date(), EXHIBITION.startDate)
 }
 
 // Takes three tense strings and returns the one
@@ -119,7 +120,7 @@ function getNLPEntity (nlp, name) {
   return nlp && nlp.entities && nlp.entities[name] && nlp.entities[name][0]
 }
 
-function handleMessageReceived (event) {
+async function handleMessageReceived (event) {
   // Event data
   const senderID = event.sender.id
   const recipientID = event.recipient.id
@@ -132,47 +133,120 @@ function handleMessageReceived (event) {
   const messageAttachments = message.attachments
 
   // Check for NLP entities
-  const nlpGreeting = getNLPEntity(message.nlp, 'wit/greetings')
+  const nlpThanks = getNLPEntity(message.nlp, 'thanks')
+  const nlpGreeting = getNLPEntity(message.nlp, 'greetings')
   const nlpIntent = getNLPEntity(message.nlp, 'intent')
 
   const confidenceThreshold = 0.75
 
   // Get sender's profile details
-  getUser(senderID).then(user => {
-    log(`Message received from ${user.first_name} ${user.last_name}: ${messageText}`)
+  let user = null
+  try {
+    user = await getUser(senderID)
+  } catch (err) {
+    log(`Error fetching user: ${err}`)
+    return
+  }
 
-    if (detectProfanity(messageText)) {
-      return handleInappropriateMessage(user)
+  log(`Message received from ${user.first_name} ${user.last_name}: ${messageText}`)
+
+  // First, detect and handle profanity
+  if (swearjar.profane(messageText)) {
+    return handleInappropriateMessage(user)
+  }
+
+  // Handle thanks or greeting if needed
+  // Thanks should override greeting
+  let didResponse = false
+  if (nlpThanks && nlpThanks.confidence > confidenceThreshold) {
+    await sendThanks(user)
+    didResponse = true
+  } else if (nlpGreeting && nlpGreeting.confidence > confidenceThreshold) {
+    await sendGreeting(user)
+    didResponse = true
+  }
+
+  // Handle message intent if needed
+  if (nlpIntent && nlpIntent.confidence > confidenceThreshold) {
+    switch (nlpIntent.value) {
+      case 'disrupt_user':
+        // Disrupt the user's profile picture and send them an animated .gif
+        return doProfileDisrupt(senderID)
+
+      case 'exhibition_time':
+        // Send info about the date and time of the exhibition
+        return sendExhibitionDate(senderID)
+
+      case 'exhibition_duration':
+        // Send info about how long the exhibition will run for
+        return sendExhibitionDuration(senderID)
+
+      case 'exhibition_countdown':
+        // Send number of days until exhibition starts,
+        // handling day-of and days after
+        return sendExhibitionCountdown(senderID)
+
+      case 'exhibition_location':
+        // Send the location of the exhibition
+        return sendExhibitionLocation(senderID)
+
+      default:
+        // Intent not handled
+        return sendFallbackMessage(senderID)
     }
-
-    if (nlpIntent && nlpIntent.confidence > confidenceThreshold) {
-      switch (nlpIntent.value) {
-        case 'disrupt_user':
-          // Disrupt the user's profile picture and send them an animated .gif
-          return doProfileDisrupt(senderID)
-
-        case 'exhibition_time':
-          // Send info about the date and time of the exhibition
-          return sendExhibitionDate(senderID)
-
-        case 'exhibition_countdown':
-          // Send number of days until exhibition starts,
-          // handling day-of and days after
-          return sendExhibitionCountdown(senderID)
-
-        case 'exhibition_location':
-          // Send the location of the exhibition
-          return sendExhibitionLocation(senderID)
-
-        default:
-          // Intent not handled
-          return sendFallbackMessage(senderID)
-      }
-    } else {
-      // Bot isn't confident enough with message intent
+  } else {
+    // Bot isn't confident enough with message intent and no greeting was sent
+    if (!didResponse) {
       return sendFallbackMessage(senderID)
     }
-  }).catch(console.error)
+  }
+}
+
+/**
+ * Sends a thanks message
+ */
+function sendThanks (user) {
+  let message = choose([
+    'Don\'t mention it. We are happy to help.',
+    'Always happy to help a fellow disruptor.',
+    `You're welcome, ${user.first_name}.`
+  ])
+  return api.sendTextMessage(user.id, message)
+}
+
+/**
+ * Sends user a personalised greeting
+ */
+function sendGreeting (user) {
+  let initialGreetings = [
+    `Hello, ${user.first_name}. We hope you're feeling disruptive today.`,
+    `Hello, disruptor. We're glad you're here.`
+  ]
+  let secondaryGreetings = [
+    `Yes, hello ${user.first_name}. We see you.`,
+    'Seems as though you like to say hi a lot.',
+    `You've already said hi today, ${user.first_name}.`
+  ]
+  let returnGreetings = [
+    `Welcome back, ${user.first_name}. We're glad to see you.`,
+    `Hello again, ${user.first_name}. How can we help?`
+  ]
+
+  // Check if user has been greeted today
+  let today = dateStamp(new Date())
+
+  if (!user.hasOwnProperty('greetedOn')) {
+    // Send initial greeting
+    db.markGreetedOn(user, today)
+    return api.sendTextMessage(user.id, choose(initialGreetings))
+  } else if (user.greetedOn !== today) {
+    // Send return greeting
+    db.markGreetedOn(user, today)
+    return api.sendTextMessage(user.id, choose([ ...initialGreetings, ...returnGreetings ]))
+  }
+
+  // Send secondary greeting - user has already said hello today!
+  return api.sendTextMessage(user.id, choose(secondaryGreetings))
 }
 
 /**
@@ -188,6 +262,52 @@ function sendExhibitionDate (fbid) {
 }
 
 /**
+ * Informs the user about the duration of the exhibition, including start and end dates
+ */
+function sendExhibitionDuration (fbid) {
+  let message = `The ${EXHIBITION.name} exhibition `
+  let duration = EXHIBITION.daySpan.toString() + ' ' + pluralise(EXHIBITION.daySpan, 'day')
+
+  // Does the exhibition run for only one day?
+  if (EXHIBITION.daySpan === 1) {
+    message += handleTense(
+      'will only last for one day.',
+      'is on today only!',
+      'only ran for one day.'
+    )
+  } else {
+    let diff = exhibitionDayDiff()
+    if (diff === -1) {
+      message += `will span ${duration}, running from ${dateString(EXHIBITION.startDate, false)} to ${dateString(EXHIBITION.endDate)}.`
+    } else if (diff === 0) {
+      message += `starts today and will run for ${duration}, ending on ${dateString(EXHIBITION.endDate)}.`
+    } else {
+      // We have passed starting day
+      let now = new Date()
+      let daysLeft = Math.abs(daysBetween(now, EXHIBITION.endDate))
+      let daysPast = EXHIBITION.daySpan - daysLeft
+      switch (dayDiff(now, EXHIBITION.endDate)) {
+        case -1:
+          // Between start and end date
+          message += `started ${daysPast} ${pluralise(daysPast, 'day')} ago, and will run for ${daysLeft} more ${pluralise(daysLeft, 'day')}.`
+          break
+        case 1:
+          // After end date
+          message += `ran for ${duration}, and finished on ${dateString(EXHIBITION.endDate)}.`
+          break
+        default:
+          // On end date
+          message += `is finishing today, after running for ${duration} from ${dateString(EXHIBITION.startDate)}`
+          break
+      }
+    }
+  }
+
+  // Send message
+  return api.sendTextMessage(fbid, message)
+}
+
+/**
  * Gives a countdown of days until the grad show
  */
 function sendExhibitionCountdown (fbid) {
@@ -199,9 +319,9 @@ function sendExhibitionCountdown (fbid) {
     message = 'The wait is almost over. Tomorrow, we DISRUPT.'
   } else {
     message = handleTense(
-      `${days} ${pluralise(days, 'day')} remain until ${EXHIBITION.name}. Be prepared.`,
+      `${days} ${pluralise(days, 'day')} ${pluralise(days, 'remains')} until ${EXHIBITION.name}. Be prepared.`,
       'The wait is over. Today, we DISRUPT.',
-      `It has been ${pluralise(-days, 'day')} days since ${EXHIBITION.name}.`
+      `It has been ${-days} ${pluralise(-days, 'day')} since ${EXHIBITION.name}.`
     )
   }
 
@@ -246,7 +366,7 @@ function doProfileDisrupt (fbid) {
 function handleInappropriateMessage (user) {
   let message = choose([
     `That isn't very nice, ${user.first_name}.`,
-    `I don't like your tone, ${user.first_name}.`,
+    `Watch your tone, ${user.first_name}.`,
     `Hey ${user.first_name}, think before saying that again.`
   ])
 
@@ -254,7 +374,7 @@ function handleInappropriateMessage (user) {
 }
 
 function sendFallbackMessage (fbid) {
-  return api.sendTextMessage(fbid, 'Sorry, I\'m not sure how to help with that.')
+  return api.sendTextMessage(fbid, 'Sorry, we\'re not sure how to help with that.')
 }
 
 /**
@@ -263,21 +383,17 @@ function sendFallbackMessage (fbid) {
 
 // Attempt to get a user from the database, then
 // fallback to the Graph API if not found
-function getUser (fbid) {
-  return new Promise((resolve, reject) => {
-    db.getUser(fbid).then(user => {
-      if (user !== null) {
-        // User exists in DB
-        resolve(user)
-      } else {
-        // User doesn't exist!
-        api.lookupUser(fbid).then(user => {
-          db.addUser(user).catch(console.error)
-          resolve(user)
-        }).catch(reject)
-      }
-    }).catch(reject)
-  })
+async function getUser (fbid) {
+  // Check for user in local DB
+  let user = await db.getUser(fbid)
+  if (user !== null) {
+    return user
+  }
+
+  // Download user from API
+  user = await api.lookupUser(fbid)
+  db.addUser(user)
+  return user
 }
 
 /**
@@ -315,7 +431,7 @@ APP.post('/webhook', (req, res) => {
       // Handle every messaging event
       entry.messaging.forEach(event => {
         if (event.message) {
-          handleMessageReceived(event)
+          handleMessageReceived(event).catch(console.error)
         } else {
           console.log('Webhook received unknown event: ', event)
         }

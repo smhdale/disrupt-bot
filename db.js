@@ -19,6 +19,18 @@ function checkProps (obj, propList) {
   return true
 }
 
+function updateUser (user, updates) {
+  return new Promise((resolve, reject) => {
+    dbUsers.update({ id: user.id }, { $set: updates }, (err, numUpdated) => {
+      if (err !== null) {
+        reject(err)
+      } else {
+        resolve(numUpdated)
+      }
+    })
+  })
+}
+
 module.exports = {
   // User management
 
@@ -50,5 +62,14 @@ module.exports = {
         }
       })
     })
+  },
+
+  // Marks the current user as having been greeted for a given date
+  markGreetedOn (user, dateString) {
+    return updateUser(user, { greeted_on: dateString })
+  },
+
+  markSeenIntro (user) {
+    return updateUser(user, { seen_intro: true })
   }
 }

@@ -38,6 +38,13 @@ function extractError (resp) {
   }
 }
 
+function markTyping (fbid) {
+  return sendMessage({
+    recipient: { id: fbid },
+    sender_action: 'typing_on'
+  })
+}
+
 function sendMessage (messageData) {
   let options = post(ENDPOINT + `me/messages`, messageData)
 
@@ -55,14 +62,16 @@ function sendMessage (messageData) {
 }
 
 module.exports = {
-  sendTextMessage (fbid, messageText) {
+  async sendTextMessage (fbid, messageText) {
+    await markTyping(fbid)
     return sendMessage({
       recipient: { id: fbid },
       message: { text: messageText }
     })
   },
 
-  sendPictureMessage (fbid, url) {
+  async sendPictureMessage (fbid, url) {
+    await markTyping(fbid)
     return sendMessage({
       recipient: { id: fbid },
       message: {
