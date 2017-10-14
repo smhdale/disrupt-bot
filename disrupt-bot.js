@@ -31,6 +31,36 @@ function log (str) {
 const choose = arr => arr[Math.floor(Math.random() * arr.length)]
 
 /**
+ * Bot settings
+ */
+
+async function initSettings () {
+  let settings = {
+    get_started: api.setting_get_started('SHOW_GREETING'),
+    persistent_menu: api.setting_persistent_menu([
+      {
+        title: 'ＤＩＳＲＵＰＴ',
+        call_to_actions: [
+          { title: 'Send a disruption', postback: 'SEND_DISRUPTION' },
+          { title: 'Disrupt me', postback: 'DISRUPT_USER' },
+        ]
+      },
+      {
+        title: 'Visit website',
+        url: 'https://d1srup7.com'
+      }
+    ])
+  }
+  try {
+    await api.applyBotSettings(settings)
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+initSettings()
+
+/**
  * Exhibition info
  */
 
@@ -156,13 +186,13 @@ async function handleMessageReceived (event) {
   }
 
   // Handle thanks or greeting if needed
-  // Thanks should override greeting
+  // Greeting should override thanks
   let didResponse = false
-  if (nlpThanks && nlpThanks.confidence > confidenceThreshold) {
-    await sendThanks(user)
-    didResponse = true
-  } else if (nlpGreeting && nlpGreeting.confidence > confidenceThreshold) {
+  if (nlpGreeting && nlpGreeting.confidence > confidenceThreshold) {
     await sendGreeting(user)
+    didResponse = true
+  } else if (nlpThanks && nlpThanks.confidence > confidenceThreshold) {
+    await sendThanks(user)
     didResponse = true
   }
 
@@ -203,6 +233,14 @@ async function handleMessageReceived (event) {
 }
 
 /**
+ * Introductory message, shown to new users
+ */
+async function sendIntroMessage (user) {
+  await api.sendTextMessage(user.id, `Welcome to ${EXHIBITION.name}, ${user.first_name}. We are disruptors; we inspire innovation, change, creativity. Join us on ${dateString(EXHIBITION.startDate, false)} to experience it for yourself at the QUT ${EXHIBITION.name} grad show.`)
+  return api.sendTextMessage(user.id, 'Until then, we are here to help. Ask us anything about the exhibition and we\'ll do our best to answer you.')
+}
+
+/**
  * Sends a thanks message
  */
 function sendThanks (user) {
@@ -224,7 +262,7 @@ function sendGreeting (user) {
   ]
   let secondaryGreetings = [
     `Yes, hello ${user.first_name}. We see you.`,
-    'Seems as though you like to say hi a lot.',
+    'You seem to like to say hello a lot.',
     `You've already said hi today, ${user.first_name}.`
   ]
   let returnGreetings = [
@@ -235,11 +273,11 @@ function sendGreeting (user) {
   // Check if user has been greeted today
   let today = dateStamp(new Date())
 
-  if (!user.hasOwnProperty('greetedOn')) {
+  if (!user.hasOwnProperty('greeted_on')) {
     // Send initial greeting
     db.markGreetedOn(user, today)
     return api.sendTextMessage(user.id, choose(initialGreetings))
-  } else if (user.greetedOn !== today) {
+  } else if (user.greeted_on !== today) {
     // Send return greeting
     db.markGreetedOn(user, today)
     return api.sendTextMessage(user.id, choose([ ...initialGreetings, ...returnGreetings ]))
@@ -397,6 +435,32 @@ async function getUser (fbid) {
 }
 
 /**
+ * Postback handling
+ */
+
+async function handlePostbackReceived (event) {
+  const senderID = event.sender.id
+  const postback = event.postback.payload
+
+  // Get sender's profile details
+  let user = null
+  try {
+    user = await getUser(senderID)
+  } catch (err) {
+    log(`Error fetching user: ${err}`)
+    return
+  }
+
+  switch (postback) {
+    case 'SHOW_GREETING':
+      return sendIntroMessage(user)
+    default:
+      console.error(`Unhandled postback type: ${postback}`)
+      return
+  }
+}
+
+/**
  * App server settings
  */
 
@@ -432,6 +496,8 @@ APP.post('/webhook', (req, res) => {
       entry.messaging.forEach(event => {
         if (event.message) {
           handleMessageReceived(event).catch(console.error)
+        } else if (event.postback) {
+          handlePostbackReceived(event)
         } else {
           console.log('Webhook received unknown event: ', event)
         }

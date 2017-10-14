@@ -67,9 +67,5 @@ module.exports = {
   // Marks the current user as having been greeted for a given date
   markGreetedOn (user, dateString) {
     return updateUser(user, { greeted_on: dateString })
-  },
-
-  markSeenIntro (user) {
-    return updateUser(user, { seen_intro: true })
   }
 }

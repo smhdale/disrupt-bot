@@ -46,8 +46,7 @@ function markTyping (fbid) {
 }
 
 function sendMessage (messageData) {
-  let options = post(ENDPOINT + `me/messages`, messageData)
-
+  let options = post(ENDPOINT + 'me/messages', messageData)
   return new Promise((resolve, reject) => {
     request(options, (err, resp, body) => {
       if (!err && resp.statusCode === 200) {
@@ -55,13 +54,56 @@ function sendMessage (messageData) {
         resolve(`Message sent to user ID ${body.recipient_id}.`)
       } else {
         let e = extractError(resp)
-        reject(`Message send failure: ${e}`)
+        reject(`Message send failed: ${e}`)
       }
     })
   })
 }
 
+function sendBotSettings (settings) {
+  let options = post(ENDPOINT + 'me/messenger_profile', settings)
+  return new Promise((resolve, reject) => {
+    request(options, (err, resp, body) => {
+      if (!err && resp.statusCode === 200) {
+        resolve('Bot settings updated.')
+      } else {
+        let e = extractError(resp)
+        reject(`Settings update failed: ${e}`)
+      }
+    })
+  })
+}
+
+function makeCallToActions (arr) {
+  return arr.map(option => {
+    if (option.hasOwnProperty('call_to_actions')) {
+      // Nested button
+      return {
+        title: option.title,
+        call_to_actions: makeCallToActions(option.call_to_actions),
+        type: 'nested'
+      }
+    } else if (option.hasOwnProperty('url')) {
+      // Web link button
+      return {
+        title: option.title,
+        url: option.url,
+        type: 'web_url',
+        webview_height_ratio: 'full'
+      }
+    }
+    // Chat postback button
+    return {
+      title: option.title,
+      payload: option.postback,
+      type: 'postback'
+    }
+  })
+}
+
 module.exports = {
+  // Message sending
+
   async sendTextMessage (fbid, messageText) {
     await markTyping(fbid)
     return sendMessage({
@@ -82,6 +124,8 @@ module.exports = {
       }
     })
   },
+
+  // User functions
 
   lookupUser (fbid) {
     let options = get(ENDPOINT + fbid, {
@@ -108,5 +152,25 @@ module.exports = {
         }
       })
     })
+  },
+
+  // Bot settings
+
+  setting_get_started (text) {
+    return { payload: text }
+  },
+
+  setting_persistent_menu (options) {
+    // options is an array of titles & payloads/urls
+    return [
+      {
+        locale: 'default',
+        call_to_actions: makeCallToActions(options)
+      }
+    ]
+  },
+
+  applyBotSettings (settings) {
+    return sendBotSettings(settings)
   }
 }
