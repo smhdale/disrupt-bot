@@ -10,23 +10,6 @@ const paths = require('./paths')
  * Handle processing of disrupted images and text
  */
 
-function disrupt (canvas) {
-  let ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#fff'
-
-  // Just draw a rectangle to prove that we can
-  let side = canvas.width / 2
-  let x = (canvas.width - side) / 2
-  let y = (canvas.height - side) / 2
-  ctx.fillRect(x, y, side, side)
-
-  return canvas
-}
-
-function disruptText (text) {
-
-}
-
 function getProfilePic (fbid) {
   let image = new Image()
 
@@ -47,7 +30,7 @@ function getProfilePic (fbid) {
 
 const sin = x => .5 * Math.sin(2 * Math.PI * x)
 
-function disruptImage (image, outputFile) {
+function disruptImageSine (image, outputFile) {
   let gifSize = 300
 
   // Make canvas
@@ -83,6 +66,38 @@ function disruptImage (image, outputFile) {
     }
     encoder.addFrame(ctx)
   }
+  encoder.finish()
+
+  // Save gif, return file path
+  return new Promise((resolve, reject) => {
+    stream.on('finish', () => {
+      resolve(filename)
+    })
+    stream.on('error', reject)
+  })
+}
+
+function disruptImage (image, outputFile) {
+  let gifSize = 300
+
+  // Make canvas
+  let canvas = new Canvas(gifSize, gifSize)
+  let ctx = canvas.getContext('2d')
+
+  // Create animated GIF
+  let filename = outputFile + '.gif'
+  let filepath = paths.image(filename)
+  let encoder = new GIFEncoder(gifSize, gifSize)
+  let stream = fs.createWriteStream(filepath)
+  encoder.createReadStream().pipe(stream)
+  encoder.start()
+  encoder.setRepeat(0)
+  encoder.setDelay(33)
+
+  // Do animation
+  
+
+  // Finish animation
   encoder.finish()
 
   // Save gif, return file path
