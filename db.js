@@ -64,6 +64,10 @@ module.exports = {
     })
   },
 
+  updateUser (user, payload) {
+    return updateUser(user, payload)
+  },
+
   // Marks the current user as having been greeted for a given date
   markGreetedOn (user, dateString) {
     return updateUser(user, { greeted_on: dateString })

@@ -64,6 +64,9 @@ initSettings()
  * Exhibition info
  */
 
+const DISRUPT_CODE = 'wearedisruptors'
+const checkCode = msg => msg.toLowerCase() === DISRUPT_CODE
+
 const MONTHS = [ 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December' ]
 
 const EXHIBITION = new function () {
@@ -185,6 +188,41 @@ async function handleMessageReceived (event) {
     return handleInappropriateMessage(user)
   }
 
+  // Next, check if we should be listening for the exhibition code
+  if (user.await_code && user.await_code === 1) {
+    // Validate the code
+    let codeValue = 0
+    let message = 'Sorry, that code isn\'t right. Use the menu to try again.'
+
+    if (checkCode(messageText)) {
+      codeValue = 2
+      message = 'That\'s correct! Type something to send to the wall:'
+    }
+
+    try {
+      await db.updateUser(user, { await_code: codeValue })
+      if (codeValue === 2) {
+        // Mark user's next message as a sendable message
+        await db.updateUser(user, { send_disruption: true })
+      }
+    } catch (e) {
+      console.error(e)
+      return sendDisruptError(user.id)
+    }
+    return api.sendTextMessage(user.id, message)
+  }
+
+  // Next, check if we should be sending a disruption
+  if (user.send_disruption && user.send_disruption === true) {
+    try {
+      await db.updateUser(user, { send_disruption: false })
+    } catch (e) {
+      console.error(e)
+      return sendDisruptError(user.id)
+    }
+    return api.sendTextMessage(user.id, 'Your disruption will show up soon.')
+  }
+
   // Handle thanks or greeting if needed
   // Greeting should override thanks
   let didResponse = false
@@ -199,9 +237,9 @@ async function handleMessageReceived (event) {
   // Handle message intent if needed
   if (nlpIntent && nlpIntent.confidence > confidenceThreshold) {
     switch (nlpIntent.value) {
-      case 'disrupt_user':
-        // Disrupt the user's profile picture and send them an animated .gif
-        return doProfileDisrupt(senderID)
+      case 'exhibition_explanation':
+        // Send an explanation of the exhibition
+        return sendExhibitionExplanation(senderID)
 
       case 'exhibition_time':
         // Send info about the date and time of the exhibition
@@ -285,6 +323,14 @@ function sendGreeting (user) {
 
   // Send secondary greeting - user has already said hello today!
   return api.sendTextMessage(user.id, choose(secondaryGreetings))
+}
+
+/**
+ * Basic details about the exhibition
+ */
+async function sendExhibitionExplanation (fbid) {
+  await api.sendTextMessage(fbid, `As designers, we ultimately design to disrupt. The QUT ${EXHIBITION.name} grad show is a showcase of our disruptive power across all disciplines of design.`)
+  return api.sendTextMessage(fbid, 'Join us, QUT\'s Interactive and Visual Design graduating class of 2017, to experience it for yourself.')
 }
 
 /**
@@ -386,21 +432,6 @@ function sendExhibitionLocation (fbid) {
   })
 }
 
-/**
- * Creates a disrupted, animated GIF version of the user's profile picture
- */
-function doProfileDisrupt (fbid) {
-  let progressMessage = api.sendTextMessage(fbid, 'Working on that...')
-  let disruptedProfile = disrupt.disruptImage(fbid).then(filename => {
-    return api.sendPictureMessage(fbid, paths.serve(filename))
-  })
-
-  return Promise.all([
-    progressMessage,
-    disruptedProfile
-  ])
-}
-
 function handleInappropriateMessage (user) {
   let message = choose([
     `That isn't very nice, ${user.first_name}.`,
@@ -413,6 +444,48 @@ function handleInappropriateMessage (user) {
 
 function sendFallbackMessage (fbid) {
   return api.sendTextMessage(fbid, 'Sorry, we\'re not sure how to help with that.')
+}
+
+/**
+ * SPECIAL DISRUPTION FUNCTIONS
+ */
+
+function doProfileDisrupt (fbid) {
+  let progressMessage = api.sendTextMessage(fbid, 'Working on that...')
+  let disruptedProfile = disrupt.disruptImage(fbid).then(filename => {
+    return api.sendPictureMessage(fbid, paths.serve(filename))
+  })
+
+  return Promise.all([
+    progressMessage,
+    disruptedProfile
+  ])
+}
+
+async function checkDisruptCode (user) {
+  if (!user.await_code || user.await_code < 2) {
+    // Add code listener flag to user account
+    try {
+      await db.updateUser(user, { await_code: 1 })
+    } catch (e) {
+      console.error(e)
+      return sendDisruptError(user.id)
+    }
+    return api.sendTextMessage(user.id, `If you're at ${EXHIBITION.name}, enter the code on the projector wall to send your own disruption:`)
+  } else {
+    // If user has already entered code, skip this step
+    try {
+      await db.updateUser(user, { send_disruption: true })
+    } catch (e) {
+      console.error(e)
+      return sendDisruptError(user.id)
+    }
+    return api.sendTextMessage(user.id, 'Type something to send to the wall:')
+  }
+}
+
+function sendDisruptError (fbid) {
+  return api.sendTextMessage(fbid, 'Sorry, something went wrong. Try doing that again.')
 }
 
 /**
@@ -454,6 +527,10 @@ async function handlePostbackReceived (event) {
   switch (postback) {
     case 'SHOW_GREETING':
       return sendIntroMessage(user)
+    case 'DISRUPT_USER':
+      return doProfileDisrupt(senderID)
+    case 'SEND_DISRUPTION':
+      return checkDisruptCode(user)
     default:
       console.error(`Unhandled postback type: ${postback}`)
       return
