@@ -7,7 +7,7 @@ const paths = require('./paths')
 
 const dbUsers = new db({ filename: paths.db('users'), autoload: true })
 
-// Compact database every hour
+// Compact databases every hour
 dbUsers.persistence.setAutocompactionInterval(3600000)
 
 function checkProps (obj, propList) {

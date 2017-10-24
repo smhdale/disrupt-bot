@@ -47,53 +47,6 @@ function getProfilePic (fbid) {
 
 const sin = x => .5 * Math.sin(2 * Math.PI * x)
 
-function disruptImageSine (image, outputFile) {
-  let gifSize = 300
-
-  // Make canvas
-  let canvas = new Canvas(gifSize, gifSize)
-  let ctx = canvas.getContext('2d')
-
-  // Create animated GIF
-  let filename = outputFile + '.gif'
-  let filepath = paths.image(filename)
-  let encoder = new GIFEncoder(gifSize, gifSize)
-  let stream = fs.createWriteStream(filepath)
-  encoder.createReadStream().pipe(stream)
-  encoder.start()
-  encoder.setRepeat(0)
-  encoder.setDelay(33)
-
-  // Do animation
-  let amp = 10
-  let rows = 30
-  let rowMod = 10
-  let rowSrcH = image.height / rows
-  let rowH = gifSize / rows
-  let frames = 30
-  for (let i = 0; i < frames; i++) {
-    ctx.clearRect(0, 0, gifSize, gifSize)
-    for (let row = 0; row < rows; row++) {
-      let rowPos = (row % rowMod) / rowMod
-      let dx = amp * sin(rowPos + i / frames)
-      ctx.drawImage(image,
-        0, row * rowSrcH, image.width, rowSrcH,
-        dx, row * rowH, gifSize, rowH
-      )
-    }
-    encoder.addFrame(ctx)
-  }
-  encoder.finish()
-
-  // Save gif, return file path
-  return new Promise((resolve, reject) => {
-    stream.on('finish', () => {
-      resolve(filename)
-    })
-    stream.on('error', reject)
-  })
-}
-
 function imageFromCanvas (canvas) {
   let img = new Image()
   return new Promise((resolve, reject) => {
@@ -233,7 +186,15 @@ async function disruptImage (image, outputFile) {
 
 module.exports = {
   async disruptImage (fbid) {
-    let image = await getProfilePic(fbid)
-    return disruptImage(image, `${fbid}_disrupted`)
+    // Check for existing image first
+    let imgName = `${fbid}_disrupted`
+    let imgPath = paths.image(`${imgName}.gif`);
+
+    if (fs.existsSync(imgPath)) {
+      return Promise.resolve(`${imgName}.gif`)
+    } else {
+      let image = await getProfilePic(fbid)
+      return disruptImage(image, imgName)
+    }
   }
 }

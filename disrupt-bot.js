@@ -8,6 +8,7 @@ const api = require('./api')
 const db = require('./db')
 const paths = require('./paths')
 const disrupt = require('./disrupt')
+const pusher = require('./pusher')
 
 const padZero = n => (n < 10 ? '0' : '') + n
 function log (str) {
@@ -216,11 +217,16 @@ async function handleMessageReceived (event) {
   if (user.send_disruption && user.send_disruption === true) {
     try {
       await db.updateUser(user, { send_disruption: false })
+      pusher.sendMessage({
+        image: `${user.id}_disrupted.gif`,
+        name: `${user.first_name} ${user.last_name}`,
+        message: messageText
+      })
+      return api.sendTextMessage(user.id, 'Your disruption will show up soon.')
     } catch (e) {
       console.error(e)
       return sendDisruptError(user.id)
     }
-    return api.sendTextMessage(user.id, 'Your disruption will show up soon.')
   }
 
   // Handle thanks or greeting if needed
@@ -504,6 +510,9 @@ async function getUser (fbid) {
   // Download user from API
   user = await api.lookupUser(fbid)
   db.addUser(user)
+
+  // Disrupt user's profile pic
+  disrupt.disruptImage(fbid)
   return user
 }
 
@@ -550,6 +559,7 @@ const AUTH = {
 }
 
 APP.use(bodyParser.json())
+APP.use(express.static('public'))
 APP.use(express.static('images'))
 
 APP.get('/webhook', (req, res) => {

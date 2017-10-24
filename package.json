@@ -26,6 +26,7 @@
     "gifencoder": "^1.1.0",
     "https": "^1.0.0",
     "nedb": "^1.8.0",
+    "pusher": "^1.5.1",
     "request": "^2.83.0",
     "swearjar": "^0.2.0"
   }
