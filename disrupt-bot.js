@@ -39,13 +39,8 @@ async function initSettings () {
   let settings = {
     get_started: api.setting_get_started('SHOW_GREETING'),
     persistent_menu: api.setting_persistent_menu([
-      {
-        title: 'ＤＩＳＲＵＰＴ',
-        call_to_actions: [
-          { title: 'Send a disruption', postback: 'SEND_DISRUPTION' },
-          { title: 'Disrupt me', postback: 'DISRUPT_USER' },
-        ]
-      },
+      { title: 'Disrupt me', postback: 'DISRUPT_USER' },
+      { title: 'Send a disruption', postback: 'SEND_DISRUPTION' },
       {
         title: 'Visit website',
         url: 'https://d1srup7.com'
