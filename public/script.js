@@ -12,6 +12,7 @@ class MessageQueue {
   // Add an item to the end of the queue
   push (item) {
     this.queue.push(item)
+    console.dir(this.queue)
   }
 
   // Returns the next item in the queue, then removes it
@@ -21,19 +22,18 @@ class MessageQueue {
       return null
     }
 
-    return this.queue[0]
+    let item = this.queue[0]
     this.queue = this.queue.filter((_, i) => i > 0)
+    return item
   }
 }
+
+const FIFO = new MessageQueue()
 
 // PUSHER
 
 function handleMessage (data) {
-  console.log(`Message received: ${data.message}`)
-  let div = document.createElement('div')
-  let text = document.createTextNode(`${data.name} says: ${data.message}`)
-  div.appendChild(text)
-  document.getElementById('messages').appendChild(div)
+  FIFO.push(data)
 }
 
 class PusherInstance {

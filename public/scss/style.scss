@@ -1,10 +1,62 @@
+@import url("https://fonts.googleapis.com/css?family=Karla:100,400,700");
+@import url('https://fonts.googleapis.com/css?family=Saira+Condensed');
+
+$contact-height: 15vh;
+$orb-size: 80vh - $contact-height;
+
 * {
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
+}
+
+.bold {
+  font-weight: bold;
+}
+
+a, a:active, a:visited {
+  color: #0084FF;
+}
+
+p {
+  font-family: Karla, sans-serif;
 }
 
 body {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#contact {
+  display: flex;
+  flex-direction: row;
+  height: $contact-height;
+  overflow: hidden;
+
+  p {
+    font-size: 1.3rem;
+    line-height: $contact-height;
+    flex-grow: 1;
+    text-align: right;
+  }
+
+  .image {
+    height: 100%;
+    padding: $contact-height / 10;
+
+    img {
+      height: 100%;
+    }
+  }
+}
+
+#main {
+  position: relative;
+  overflow: hidden;
   background-color: #0f142c;
+  flex-grow: 1;
 }
 
 #orb {
@@ -12,8 +64,8 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 90vmin;
-  height: 90vmin;
+  width: $orb-size;
+  height: $orb-size;
   background-image: url('../images/marble.jpg');
   border-radius: 45vmin;
   background-size: cover;
@@ -22,8 +74,8 @@ body {
 
 #noise-overlay {
   position: absolute;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   top: 0;
   left: 0;
   overflow: hidden;
