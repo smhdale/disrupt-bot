@@ -1,6 +1,40 @@
+// Message queue
+
+class MessageQueue {
+  constructor () {
+    this.queue = []
+  }
+
+  get isEmpty () {
+    return this.queue.length === 0
+  }
+
+  // Add an item to the end of the queue
+  push (item) {
+    this.queue.push(item)
+  }
+
+  // Returns the next item in the queue, then removes it
+  // Returns null if queue is empty
+  pop () {
+    if (this.isEmpty) {
+      return null
+    }
+
+    return this.queue[0]
+    this.queue = this.queue.filter((_, i) => i > 0)
+  }
+}
+
 // PUSHER
 
-Pusher.logToConsole = true;
+function handleMessage (data) {
+  console.log(`Message received: ${data.message}`)
+  let div = document.createElement('div')
+  let text = document.createTextNode(`${data.name} says: ${data.message}`)
+  div.appendChild(text)
+  document.getElementById('messages').appendChild(div)
+}
 
 class PusherInstance {
   constructor () {
@@ -29,14 +63,6 @@ class PusherInstance {
       this._subscriptions[channelName].bind(eventName, callback)
     }
   }
-}
-
-function handleMessage (data) {
-  console.log(`Message received: ${data.message}`)
-  let div = document.createElement('div')
-  let text = document.createTextNode(`${data.name} says: ${data.message}`)
-  div.appendChild(text)
-  document.getElementById('messages').appendChild(div)
 }
 
 const PUSHER = new PusherInstance()

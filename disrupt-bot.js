@@ -54,7 +54,7 @@ async function initSettings () {
   }
 }
 
-initSettings()
+// initSettings()
 
 /**
  * Exhibition info
@@ -177,7 +177,7 @@ async function handleMessageReceived (event) {
     return
   }
 
-  log(`Message received from ${user.first_name} ${user.last_name}: ${messageText}`)
+  log(`Message from ${user.first_name} ${user.last_name}: ${messageText}`)
 
   // First, detect and handle profanity
   if (swearjar.profane(messageText)) {
@@ -504,6 +504,8 @@ async function getUser (fbid) {
 
   // Download user from API
   user = await api.lookupUser(fbid)
+  // Make sure we set the fbid from the sender ID!
+  user.id = fbid
   db.addUser(user)
 
   // Disrupt user's profile pic
@@ -528,6 +530,8 @@ async function handlePostbackReceived (event) {
     return
   }
 
+  log(`Postback from ${user.first_name} ${user.last_name}: ${postback}`)
+
   switch (postback) {
     case 'SHOW_GREETING':
       return sendIntroMessage(user)
@@ -536,7 +540,7 @@ async function handlePostbackReceived (event) {
     case 'SEND_DISRUPTION':
       return checkDisruptCode(user)
     default:
-      console.error(`Unhandled postback type: ${postback}`)
+      log(`Unhandled postback type: ${postback}`)
       return
   }
 }
@@ -581,7 +585,7 @@ APP.post('/webhook', (req, res) => {
         } else if (event.postback) {
           handlePostbackReceived(event)
         } else {
-          console.log('Webhook received unknown event: ', event)
+          log('Webhook received unknown event: ', event)
         }
       })
     })

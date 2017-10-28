@@ -3,7 +3,7 @@ const fs = require('fs')
 const paths = require('./paths')
 
 const ENDPOINT = 'https://graph.facebook.com/v2.6/'
-const ACCESS_TOKEN = 'EAAOXIsHFTr4BAPsTeHYjC3e59YXU7QwyQjL7JIhkLpHZBkZCT8hsAYeKDpQv4fl3yDZCu7EzWcznZCAwKHXgG6MZCZCj09T1ZCUoskpKHhlIQI9J3KZBZAvpaInurSeVs2ZBQWm0FZCjhcNvM7Pfo0XYBkyNdC9ujdbtC9UtwIGpr7YuaWfZCpHYdu1W'
+const ACCESS_TOKEN = 'EAAOXIsHFTr4BADgrkb6KGKV2xzMaZAGR5ebYutTLQ5rA8VOpHXv1qYZCeQQgRtwApImZCTQ2NqLHstpVvkuRQ0pUlt5SBIcbF13G02F8ALVICtkhbKz85ytFF6E6dSOVlKtZCLrSbuZCCFonZAgNEfIqyYie9kutPte8mOaPnfvspK8HDAuhP7'
 
 function get (endpoint, qs) {
   return {
@@ -105,29 +105,39 @@ module.exports = {
   // Message sending
 
   async sendTextMessage (fbid, messageText) {
-    await markTyping(fbid)
-    return sendMessage({
-      recipient: { id: fbid },
-      message: { text: messageText }
-    })
+    try {
+      await markTyping(fbid)
+      return sendMessage({
+        recipient: { id: fbid },
+        message: { text: messageText }
+      })
+    } catch (e) {
+      console.error(e)
+      return Promise.resolve()
+    }
   },
 
   async sendPictureMessage (fbid, url) {
-    await markTyping(fbid)
-    return sendMessage({
-      recipient: { id: fbid },
-      message: {
-        attachment: {
-          type: 'image',
-          payload: { url: url }
+    try {
+      await markTyping(fbid)
+      return sendMessage({
+        recipient: { id: fbid },
+        message: {
+          attachment: {
+            type: 'image',
+            payload: { url: url }
+          }
         }
-      }
-    })
+      })
+    } catch (e) {
+      console.error(e)
+      return Promise.resolve()
+    }
   },
 
   // User functions
 
-  lookupUser (fbid) {
+  async lookupUser (fbid) {
     let options = get(ENDPOINT + fbid, {
       fields: 'first_name,last_name,profile_pic'
     })
