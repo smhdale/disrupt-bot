@@ -2,12 +2,22 @@
 @import url('https://fonts.googleapis.com/css?family=Saira+Condensed');
 
 $contact-height: 15vh;
-$orb-size: 80vh - $contact-height;
+$msg-area-height: 100vh - $contact-height;
+$orb-size: $msg-area-height * 0.8;
+$effect-speed: 1s;
+$move-speed: 2s;
+
+$msg-width: 70vw;
+$msg-height: 20vw;
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+.hidden {
+  opacity: 0;
 }
 
 .bold {
@@ -32,18 +42,38 @@ body {
 // MESSAGE BOX
 
 .message {
-  position: relative;
+  position: absolute;
   display: flex;
   flex-direction: row;
-  width: 70vw;
-  height: 20vw;
+  width: $msg-width;
+  height: $msg-height;
   color: #fff;
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: $msg-height / 2;
+  transform: translate(-50%, -50%);
+  transition: width $effect-speed,
+              opacity $effect-speed,
+              left $move-speed,
+              top $move-speed,
+              transform $move-speed;
+
+  left: 50vw;
+  top: $msg-area-height / 2;
+
+  &.secondary {
+    transform: translate(-50%, -50%) scale(0.8);
+    left: $msg-width * 0.8 / 2 + 2vw;
+  }
+
+  &.pic-only {
+    width: 20vw;
+  }
 
   .profile-pic {
-    width: 16vw;
-    border-radius: 10vw;
-    overflow: hidden;
+    width: $msg-height - 4vw;
     margin: 2vw;
+    border-radius: 50%;
+    overflow: hidden;
 
     img {
       width: 100%;
@@ -53,6 +83,7 @@ body {
 
   .message-details {
     width: 0;
+    max-width: 46vw;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
@@ -117,6 +148,7 @@ body {
 }
 
 #noise-overlay {
+  pointer-events: none;
   position: absolute;
   width: 100%;
   height: 100%;

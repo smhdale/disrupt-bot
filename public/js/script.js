@@ -1,8 +1,12 @@
 const FPS = 60
+const secToFPS = sec => Math.floor(sec * FPS)
+
+const EFFECT_SPD = 1000
+const MOVE_SPD = 2000
 
 // Inclusive
 function randInt(min, max) {
-  return Math.floor(Math.random * (max - min + 1)) + min
+  return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
 // Disrupt message
@@ -12,18 +16,18 @@ class DisruptedText {
     this.frame = 0
     this.string = string
     this.chars = []
-    this.scrambleSpd = FPS * 0.1
+    this.scrambleSpd = secToFPS(0.1)
 
     this.obfuscatedChars = '!@#$%^&*123456789'
 
     for (let char of string) {
-      let showTime = randInt(0, animTime / 2)
-      let stopTime = randInt(animTime - showTime, animTime)
+      let showFrame = randInt(0, animTime * 0.75)
+      let stopFrame = randInt(animTime - showFrame, animTime)
       this.chars.push({
         current: ' ',
         target: char,
-        showTime: showTime,
-        stopTime: stopTime
+        showFrame: showFrame,
+        stopFrame: stopFrame
       })
     }
   }
@@ -33,48 +37,98 @@ class DisruptedText {
   }
 
   update () {
+    let didUpdate = false
+
     for (let char of this.chars) {
       // Don't animate spaces
       if (char.target !== ' ') {
-        if (char.showTime >= this.frame && this.frame < char.stopTime) {
+        if (this.frame >= char.showFrame && this.frame < char.stopFrame) {
           // Obfuscate chars
           if (this.frame % this.scrambleSpd === 0) {
-            this.current = this.getRandomChar()
+            char.current = this.getRandomChar()
+            didUpdate = true
           }
-        } else if (this.frame >= char.stopTime && this.current !== this.target) {
-          this.current = this.target
+        } else if (this.frame >= char.stopFrame && char.current !== char.target) {
+          char.current = char.target
+          didUpdate = true
         }
       }
     }
+
+    this.frame++
+    return didUpdate
   }
 
   get value () {
-    return this.chars.reduce((acc, char) => return acc + char.current, '')
+    return this.chars.reduce((acc, char) => acc + char.current, '')
   }
 }
 
 class DisruptMessage {
-  constructor (picUrl, name, message) {
-    this.picUrl = picUrl
+  constructor (target, picUrl, name, message) {
+    this.target = document.querySelector(target)
 
+    this.picUrl = picUrl
     this.name = name
     this.message = message
-    this.obfuscatedName = new DisruptedText(name)
-    this.obfuscatedMessage = new DisruptedText()
 
-    this.elem = document.createElement('div')
+    let animTime = secToFPS(2)
+    this.obfuscatedName = new DisruptedText(name, animTime)
+    this.obfuscatedMessage = new DisruptedText(message, animTime)
+
+    this.elem = null
     this.profilePic = new Image()
-    this.animFrame = 0
+
+    this.animateText = false
+    this.inForeground = true
+
+    this.bounds = {
+      w: window.innerWidth,
+      h: window.innerHeight * 0.85 // Account for contact bar
+    }
+
+    this.x = this.bounds.w / 2
+    this.y = this.bounds.h / 2
+
+    this.xPrev = -1
+    this.yPrev = -1
 
     this.init()
   }
 
   async init () {
+    this.initDom()
     await this.setProfilePic()
-    this.animateIn()
+    this.setupTriggers()
+  }
+
+  setupTriggers() {
+    // Fade in
+    window.setTimeout(() => {
+      this.elem.classList.remove('hidden')
+    }, 1)
+
+    // Expand
+    window.setTimeout(() => {
+      this.elem.classList.remove('pic-only')
+      this.animateText = true
+    }, EFFECT_SPD)
+
+    // Move to side
+    window.setTimeout(() => {
+      this.elem.classList.add('secondary')
+    }, EFFECT_SPD + 5000)
+
+    // Allow new messages
+    window.setTimeout(() => {
+      this.inForeground = false
+    }, EFFECT_SPD + 5000 + MOVE_SPD)
   }
 
   initDom () {
+    this.elem = document.createElement('div')
+    this.elem.className = 'message pic-only hidden'
+
     this.elem.innerHTML = `<div class="profile-pic"></div>
     <div class="message-details">
       <p class="user-name"></p>
@@ -82,21 +136,48 @@ class DisruptMessage {
     </div>`
 
     // Add profile pic
-    this.elem.querySelector('.profile-pic').apapendChild(this.profilePic)
+    this.elem.querySelector('.profile-pic').appendChild(this.profilePic)
+
+    // Add to messages
+    this.target.appendChild(this.elem)
   }
 
   setProfilePic () {
     return new Promise((resolve, reject) => {
       this.profilePic.onload = resolve
-      this.profilePic.onerror = reject
+      this.profilePic.onerror = resolve
       this.profilePic.src = this.picUrl
     })
   }
 
-  udpate () {
-    // Animate the text in somehow, probably letter by letter
-    let progress = this.animFrame / this.animTime
+  setInnerHTML (text, sel) {
+    let node = document.createTextNode(text)
+    let target = this.elem.querySelector(sel)
+    target.innerHTML = ''
+    target.appendChild(node)
+  }
 
+  update () {
+    if (this.animateText) {
+      if (this.obfuscatedName.update()) {
+        this.setInnerHTML(this.obfuscatedName.value, '.user-name')
+      }
+      if (this.obfuscatedMessage.update()) {
+        this.setInnerHTML(this.obfuscatedMessage.value, '.user-message')
+      }
+    }
+  }
+
+  moveToBackground () {
+    // Send the message somewhere in the background
+
+
+    // Give another second before allowing another message to appear
+    window.setTimeout(this.markFinishedDisplaying.bind(this), 1000)
+  }
+
+  markFinishedDisplaying () {
+    this.inForeground = false
   }
 }
 
@@ -105,13 +186,26 @@ class MessageHandler {
     this.messages = []
   }
 
-  get numMessages () {
-    return this.messages.length
+  get numMessages () { return this.messages.length }
+  get hasMessages () { return this.numMessages > 0 }
+
+  get messageAnimating () {
+    if (!this.hasMessages) {
+      return false
+    }
+    return this.messages.reduce((acc, msg) => acc || msg.inForeground, false)
   }
 
   addMessage (data) {
+    // Notify current message to move to background
+    if (this.hasMessages) {
+      console.dir(this.messages[this.numMessages - 1])
+      this.messages[this.numMessages - 1].moveToBackground()
+    }
+
     // Create a DisruptMessage
     this.messages.push(new DisruptMessage(
+      '#messages',
       data.image,
       data.name,
       data.message
@@ -119,7 +213,7 @@ class MessageHandler {
   }
 
   updateMessages () {
-    if (this.numMessages > 0) {
+    if (this.hasMessages) {
       for (let message of this.messages) {
         message.update()
       }
@@ -156,15 +250,27 @@ class MessageQueue {
   }
 }
 
+const MESSAGES = new MessageHandler()
 const FIFO = new MessageQueue()
 
 // MAIN LOOP
 
 function MainLoop () {
+  // Check if queue is non-empty and there's no currently animating message
+  if (!MESSAGES.messageAnimating && !FIFO.isEmpty) {
+    let next = FIFO.pop()
+    MESSAGES.addMessage(next)
+  }
 
+  MESSAGES.updateMessages()
 
   window.requestAnimationFrame(MainLoop)
 }
+
+// Start anim on window ready
+window.addEventListener('load', () => {
+  window.requestAnimationFrame(MainLoop)
+})
 
 // PUSHER
 

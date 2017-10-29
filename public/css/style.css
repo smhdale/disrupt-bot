@@ -5,6 +5,9 @@
   padding: 0;
   box-sizing: border-box; }
 
+.hidden {
+  opacity: 0; }
+
 .bold {
   font-weight: bold; }
 
@@ -21,22 +24,34 @@ body {
   flex-direction: column; }
 
 .message {
-  position: relative;
+  position: absolute;
   display: flex;
   flex-direction: row;
   width: 70vw;
   height: 20vw;
-  color: #fff; }
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.25);
+  border-radius: 10vw;
+  transform: translate(-50%, -50%);
+  transition: width 1s, opacity 1s, left 2s, top 2s, transform 2s;
+  left: 50vw;
+  top: 42.5vh; }
+  .message.secondary {
+    transform: translate(-50%, -50%) scale(0.8);
+    left: 30vw; }
+  .message.pic-only {
+    width: 20vw; }
   .message .profile-pic {
     width: 16vw;
-    border-radius: 10vw;
-    overflow: hidden;
-    margin: 2vw; }
+    margin: 2vw;
+    border-radius: 50%;
+    overflow: hidden; }
     .message .profile-pic img {
       width: 100%;
       height: 100%; }
   .message .message-details {
     width: 0;
+    max-width: 46vw;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
@@ -76,14 +91,15 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 65vh;
-  height: 65vh;
+  width: 68vh;
+  height: 68vh;
   background-image: url("../images/marble.jpg");
   border-radius: 45vmin;
   background-size: cover;
   opacity: .4; }
 
 #noise-overlay {
+  pointer-events: none;
   position: absolute;
   width: 100%;
   height: 100%;
