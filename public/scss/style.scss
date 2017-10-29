@@ -29,6 +29,50 @@ body {
   flex-direction: column;
 }
 
+// MESSAGE BOX
+
+.message {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  width: 70vw;
+  height: 20vw;
+  color: #fff;
+
+  .profile-pic {
+    width: 16vw;
+    border-radius: 10vw;
+    overflow: hidden;
+    margin: 2vw;
+
+    img {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .message-details {
+    width: 0;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    .user-name {
+      font-family: 'Saira Condensed', Karla, sans-serif;
+      line-height: 4.4vw;
+      font-size: 4vw;
+    }
+
+    .user-message {
+      line-height: 3.3vw;
+      font-size: 3vw;
+    }
+  }
+}
+
+// BOTTOM CONTACT BAR
+
 #contact {
   display: flex;
   flex-direction: row;

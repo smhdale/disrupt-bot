@@ -1,5 +1,6 @@
 const gulp = require('gulp')
 const sass = require('gulp-sass')
+const babel = require('gulp-babel')
 const browserSync = require('browser-sync').create()
 
 gulp.task('browserSync', () => {
@@ -19,8 +20,8 @@ gulp.task('sass', () => {
     }))
 })
 
-gulp.task('watch', [ 'browserSync', 'sass' ], () => {
+gulp.task('watch', [ 'browserSync', 'sass', ], () => {
   gulp.watch('public/scss/*.scss', [ 'sass' ])
+  gulp.watch('public/js/*.js', browserSync.reload)
   gulp.watch('public/*.html', browserSync.reload)
-  gulp.watch('public/**/*.js', browserSync.reload)
 })
