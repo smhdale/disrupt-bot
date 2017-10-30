@@ -94,6 +94,8 @@ class DisruptMessage {
     this.xPrev = -1
     this.yPrev = -1
 
+    this.first = false
+
     this.init()
   }
 
@@ -101,6 +103,10 @@ class DisruptMessage {
     this.initDom()
     await this.setProfilePic()
     this.setupTriggers()
+  }
+
+  markAsFirst () {
+    this.first = true
   }
 
   setupTriggers() {
@@ -117,7 +123,10 @@ class DisruptMessage {
 
     // Move to side
     window.setTimeout(() => {
-      this.elem.classList.add('second-position')
+      if (!this.first) {
+        this.elem.classList.add('second-position')
+      }
+
       if (this.hideImmediately) {
         this.moveOffScreen()
       } else {
@@ -195,6 +204,9 @@ class DisruptMessage {
 
   moveOffScreen () {
     // Send the message somewhere in the background
+    if (!this.elem.classList.contains('second-position')) {
+      this.elem.classList.add('second-position')
+    }
     this.elem.classList.add('third-position')
 
     // Hide message list
@@ -222,7 +234,8 @@ class MessageHandler {
     this.maxMessages = 7
   }
 
-  get hasMessages () { return this.messages.length > 0 }
+  get numMessages () { return this.messages.length }
+  get hasMessages () { return this.numMessages > 0 }
 
   get messageAnimating () {
     if (!this.hasMessages) {
@@ -244,17 +257,22 @@ class MessageHandler {
 
   addMessage (data) {
     // Create a DisruptMessage
-    let newMessage = new DisruptMessage(
+    let message = new DisruptMessage(
       '#main-message',
       data.image,
       data.name,
       data.message
     )
 
-    this.messages = [
-      newMessage,
-      ...this.messages
-    ]
+    if (this.numMessages === 0) {
+      message.markAsFirst()
+      this.messages.push(message)
+    } else {
+      this.messages = [
+        message,
+        ...this.messages
+      ]
+    }
   }
 
   updateMessages () {
