@@ -33,12 +33,14 @@ body {
   background-color: rgba(255, 255, 255, 0.25);
   border-radius: 10vw;
   transform: translate(-50%, -50%);
-  transition: width 1s, opacity 1s, left 2s, top 2s, transform 2s;
+  transition: all 1s;
   left: 50vw;
   top: 42.5vh; }
-  .message.secondary {
-    transform: translate(-50%, -50%) scale(0.8);
-    left: 30vw; }
+  .message.second-position {
+    transform: translate(-50%, -50%) scale(0.9);
+    left: 33.5vw; }
+    .message.second-position.third-position {
+      transform: translate(-150%, -50%) scale(0.9); }
   .message.pic-only {
     width: 20vw; }
   .message .profile-pic {
@@ -62,18 +64,71 @@ body {
       font-size: 4vw; }
     .message .message-details .user-message {
       line-height: 3.3vw;
-      font-size: 3vw; }
+      max-height: 13.2vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-bottom: 0.2vw;
+      box-sizing: content-box;
+      font-size: 3vw;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical; }
+
+#message-list {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 70vw;
+  transform: translate(-2vw, 2vw) scale(0.4);
+  transform-origin: top right; }
+  #message-list.hide .message {
+    margin-left: 92.5vw; }
+    #message-list.hide .message:nth-child(1) {
+      transition-delay: 0s; }
+    #message-list.hide .message:nth-child(2) {
+      transition-delay: 0.1s; }
+    #message-list.hide .message:nth-child(3) {
+      transition-delay: 0.2s; }
+    #message-list.hide .message:nth-child(4) {
+      transition-delay: 0.3s; }
+    #message-list.hide .message:nth-child(5) {
+      transition-delay: 0.4s; }
+    #message-list.hide .message:nth-child(6) {
+      transition-delay: 0.5s; }
+  #message-list .message {
+    position: relative;
+    transform: none;
+    top: 0;
+    left: 0;
+    margin-bottom: 5vw;
+    transition: margin-left 1s; }
+    #message-list .message:nth-child(1) {
+      transition-delay: 0.5s; }
+    #message-list .message:nth-child(2) {
+      transition-delay: 0.6s; }
+    #message-list .message:nth-child(3) {
+      transition-delay: 0.7s; }
+    #message-list .message:nth-child(4) {
+      transition-delay: 0.8s; }
+    #message-list .message:nth-child(5) {
+      transition-delay: 0.9s; }
+    #message-list .message:nth-child(6) {
+      transition-delay: 1s; }
 
 #contact {
   display: flex;
   flex-direction: row;
   height: 15vh;
   overflow: hidden; }
-  #contact p {
-    font-size: 1.3rem;
-    line-height: 15vh;
+  #contact .text {
     flex-grow: 1;
-    text-align: right; }
+    display: flex;
+    flex-direction: column;
+    justify-content: center; }
+    #contact .text p {
+      font-size: 1.5vw;
+      line-height: 2vw;
+      text-align: right; }
   #contact .image {
     height: 100%;
     padding: 1.5vh; }

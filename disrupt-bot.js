@@ -3,6 +3,7 @@ const https = require('https')
 const bodyParser = require('body-parser')
 const fs = require('fs')
 const swearjar = require('swearjar')
+const badWordsList = require('badwords-list').array
 
 const api = require('./api')
 const db = require('./db')
@@ -145,6 +146,24 @@ function handleTense (before, dayOf, after) {
  * Message handling
  */
 
+function findBadWords (str) {
+  let joiners = [ ' ', '.', ',', '-' ]
+
+  for (let word of badWordsList) {
+    let joinedWords = joiners.map(j => word.split('').join(j))
+    for (let joinedWord of joinedWords) {
+      if (str.includes(joinedWord)) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+function detectProfanity (str) {
+  return (swearjar.profane(str) || findBadWords(str))
+}
+
 function getNLPEntity (nlp, name) {
   return nlp && nlp.entities && nlp.entities[name] && nlp.entities[name][0]
 }
@@ -180,7 +199,7 @@ async function handleMessageReceived (event) {
   log(`Message from ${user.first_name} ${user.last_name}: ${messageText}`)
 
   // First, detect and handle profanity
-  if (swearjar.profane(messageText)) {
+  if (detectProfanity(messageText)) {
     return handleInappropriateMessage(user)
   }
 
@@ -217,7 +236,7 @@ async function handleMessageReceived (event) {
         name: `${user.first_name} ${user.last_name}`,
         message: messageText
       })
-      return api.sendTextMessage(user.id, 'Your disruption will show up soon.')
+      return api.sendTextMessage(user.id, 'Your disruption will show up soon. Watch the wall!')
     } catch (e) {
       console.error(e)
       return sendDisruptError(user.id)

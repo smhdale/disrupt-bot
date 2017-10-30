@@ -1,8 +1,6 @@
 const FPS = 60
 const secToFPS = sec => Math.floor(sec * FPS)
-
-const EFFECT_SPD = 1000
-const MOVE_SPD = 2000
+const ANIM_SPEED = 1000
 
 // Inclusive
 function randInt(min, max) {
@@ -33,7 +31,8 @@ class DisruptedText {
   }
 
   getRandomChar () {
-    return this.obfuscatedChars[randInt(0, this.obfuscatedChars.length - 1)]
+    let char = randInt(0, this.obfuscatedChars.length)
+    return (char === this.obfuscatedChars.length ? '' : this.obfuscatedChars[char])
   }
 
   update () {
@@ -65,22 +64,24 @@ class DisruptedText {
 }
 
 class DisruptMessage {
-  constructor (target, picUrl, name, message) {
+  constructor (target, picUrl, name, message, hideImmediately = false) {
     this.target = document.querySelector(target)
 
     this.picUrl = picUrl
     this.name = name
     this.message = message
 
-    let animTime = secToFPS(2)
-    this.obfuscatedName = new DisruptedText(name, animTime)
-    this.obfuscatedMessage = new DisruptedText(message, animTime)
+    this.obfuscatedName = new DisruptedText(name, secToFPS(1))
+    this.obfuscatedMessage = new DisruptedText(message, secToFPS(2))
 
     this.elem = null
     this.profilePic = new Image()
 
     this.animateText = false
+    this.animating = true
     this.inForeground = true
+    this.timeInForeground = 6000
+    this.hideImmediately = hideImmediately
 
     this.bounds = {
       w: window.innerWidth,
@@ -112,17 +113,18 @@ class DisruptMessage {
     window.setTimeout(() => {
       this.elem.classList.remove('pic-only')
       this.animateText = true
-    }, EFFECT_SPD)
+    }, ANIM_SPEED)
 
     // Move to side
     window.setTimeout(() => {
-      this.elem.classList.add('secondary')
-    }, EFFECT_SPD + 5000)
-
-    // Allow new messages
-    window.setTimeout(() => {
-      this.inForeground = false
-    }, EFFECT_SPD + 5000 + MOVE_SPD)
+      this.elem.classList.add('second-position')
+      if (this.hideImmediately) {
+        this.moveOffScreen()
+      } else {
+        this.inForeground = false
+        MESSAGE_LIST.unhide()
+      }
+    }, ANIM_SPEED + this.timeInForeground)
   }
 
   initDom () {
@@ -157,6 +159,23 @@ class DisruptMessage {
     target.appendChild(node)
   }
 
+  deleteFromParent () {
+    // Delete from current parent
+    this.elem.parentElement.removeChild(this.elem)
+  }
+
+  moveElement (sel) {
+    this.deleteFromParent()
+
+    // Add to new parent
+    let newTarget = document.querySelector(sel)
+    if (newTarget.firstChild !== null) {
+      newTarget.insertBefore(this.elem, newTarget.firstChild)
+    } else {
+      newTarget.appendChild(this.elem)
+    }
+  }
+
   update () {
     if (this.animateText) {
       if (this.obfuscatedName.update()) {
@@ -168,48 +187,74 @@ class DisruptMessage {
     }
   }
 
-  moveToBackground () {
-    // Send the message somewhere in the background
-
-
-    // Give another second before allowing another message to appear
-    window.setTimeout(this.markFinishedDisplaying.bind(this), 1000)
+  triggerMoveOffScreen () {
+    if (!this.elem.classList.contains('third-position')) {
+      this.moveOffScreen()
+    }
   }
 
-  markFinishedDisplaying () {
-    this.inForeground = false
+  moveOffScreen () {
+    // Send the message somewhere in the background
+    this.elem.classList.add('third-position')
+
+    // Hide message list
+    MESSAGE_LIST.hide()
+
+    // Give another second before allowing another message to appear
+    window.setTimeout(this.markFinishedAnimating.bind(this), 1000)
+
+    // Allow for message list to disappear before moving to it
+    window.setTimeout(() => {
+      this.moveElement('#message-list')
+      // Tell message list to remove old elements
+      MESSAGES.removeOldMessages()
+    }, 2500)
+  }
+
+  markFinishedAnimating () {
+    this.animating = false
   }
 }
 
 class MessageHandler {
   constructor () {
     this.messages = []
+    this.maxMessages = 7
   }
 
-  get numMessages () { return this.messages.length }
-  get hasMessages () { return this.numMessages > 0 }
+  get hasMessages () { return this.messages.length > 0 }
 
   get messageAnimating () {
     if (!this.hasMessages) {
       return false
     }
-    return this.messages.reduce((acc, msg) => acc || msg.inForeground, false)
+    return this.messages[0].animating
+  }
+
+  hideCurrent () {
+    if (this.hasMessages) {
+      let current = this.messages[0]
+      if (current.inForeground && !current.hideImmediately) {
+        current.hideImmediately = true
+      } else if (!current.inForeground) {
+        current.triggerMoveOffScreen()
+      }
+    }
   }
 
   addMessage (data) {
-    // Notify current message to move to background
-    if (this.hasMessages) {
-      console.dir(this.messages[this.numMessages - 1])
-      this.messages[this.numMessages - 1].moveToBackground()
-    }
-
     // Create a DisruptMessage
-    this.messages.push(new DisruptMessage(
-      '#messages',
+    let newMessage = new DisruptMessage(
+      '#main-message',
       data.image,
       data.name,
       data.message
-    ))
+    )
+
+    this.messages = [
+      newMessage,
+      ...this.messages
+    ]
   }
 
   updateMessages () {
@@ -219,11 +264,21 @@ class MessageHandler {
       }
     }
   }
+
+  removeOldMessages () {
+    // Remove DOM elements
+    for (let message of this.messages.filter((_, i) => i >= this.maxMessages)) {
+      message.deleteFromParent()
+    }
+
+    // Remove old elems
+    this.messages = this.messages.filter((_, i) => i < this.maxMessages)
+  }
 }
 
 // Message queue
 
-class MessageQueue {
+class FIFO {
   constructor () {
     this.queue = []
   }
@@ -250,16 +305,32 @@ class MessageQueue {
   }
 }
 
+class MessageList {
+  constructor () {
+    this.elem = document.querySelector('#message-list')
+    this.hideClass = 'hide'
+  }
+  hide () { this.elem.classList.add(this.hideClass) }
+  unhide () { this.elem.classList.remove(this.hideClass) }
+}
+
+const MESSAGE_LIST = new MessageList()
 const MESSAGES = new MessageHandler()
-const FIFO = new MessageQueue()
+const MESSAGE_QUEUE = new FIFO()
 
 // MAIN LOOP
 
 function MainLoop () {
-  // Check if queue is non-empty and there's no currently animating message
-  if (!MESSAGES.messageAnimating && !FIFO.isEmpty) {
-    let next = FIFO.pop()
-    MESSAGES.addMessage(next)
+  // Check for new messages in the queue
+  if (!MESSAGE_QUEUE.isEmpty) {
+    if (MESSAGES.messageAnimating) {
+      // Tell the current message to go away
+      MESSAGES.hideCurrent()
+    } else {
+      // Wait until current message is finished
+      let next = MESSAGE_QUEUE.pop()
+      MESSAGES.addMessage(next)
+    }
   }
 
   MESSAGES.updateMessages()
@@ -275,7 +346,7 @@ window.addEventListener('load', () => {
 // PUSHER
 
 function handleMessage (data) {
-  FIFO.push(data)
+  MESSAGE_QUEUE.push(data)
 }
 
 class PusherInstance {

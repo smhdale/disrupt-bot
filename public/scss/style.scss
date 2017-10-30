@@ -4,11 +4,15 @@
 $contact-height: 15vh;
 $msg-area-height: 100vh - $contact-height;
 $orb-size: $msg-area-height * 0.8;
-$effect-speed: 1s;
-$move-speed: 2s;
+$anim-speed: 1s;
 
 $msg-width: 70vw;
 $msg-height: 20vw;
+$msg-padding: 2vw;
+$msg-line-height: 3.3vw;
+
+$msg-sidepos-scale: 0.9;
+$msg-list-scale: 0.4;
 
 * {
   margin: 0;
@@ -51,27 +55,27 @@ body {
   background-color: rgba(255, 255, 255, 0.25);
   border-radius: $msg-height / 2;
   transform: translate(-50%, -50%);
-  transition: width $effect-speed,
-              opacity $effect-speed,
-              left $move-speed,
-              top $move-speed,
-              transform $move-speed;
+  transition: all $anim-speed;
 
   left: 50vw;
   top: $msg-area-height / 2;
 
-  &.secondary {
-    transform: translate(-50%, -50%) scale(0.8);
-    left: $msg-width * 0.8 / 2 + 2vw;
+  &.second-position {
+    transform: translate(-50%, -50%) scale($msg-sidepos-scale);
+    left: $msg-width * $msg-sidepos-scale / 2 + 2vw;
+
+    &.third-position {
+      transform: translate(-150%, -50%) scale($msg-sidepos-scale);
+    }
   }
 
   &.pic-only {
-    width: 20vw;
+    width: $msg-height;
   }
 
   .profile-pic {
-    width: $msg-height - 4vw;
-    margin: 2vw;
+    width: $msg-height - $msg-padding * 2;
+    margin: $msg-padding;
     border-radius: 50%;
     overflow: hidden;
 
@@ -96,8 +100,50 @@ body {
     }
 
     .user-message {
-      line-height: 3.3vw;
+      line-height: $msg-line-height;
+      max-height: $msg-line-height * 4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-bottom: 0.2vw;
+      box-sizing: content-box;
       font-size: 3vw;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+    }
+  }
+}
+
+#message-list {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: $msg-width;
+  transform: translate(-$msg-padding, $msg-padding) scale($msg-list-scale);
+  transform-origin: top right;
+
+  &.hide .message {
+    margin-left: $msg-width * 1.25 + $msg-padding / $msg-list-scale;
+
+    @for $i from 1 through 6 {
+      &:nth-child(#{$i}) {
+        transition-delay: $anim-speed / 10 * ($i - 1)
+      }
+    }
+  }
+
+  .message {
+    position: relative;
+    transform: none;
+    top: 0;
+    left: 0;
+    margin-bottom: $msg-padding / $msg-list-scale;
+    transition: margin-left $anim-speed;
+
+    @for $i from 1 through 6 {
+      &:nth-child(#{$i}) {
+        transition-delay: $anim-speed / 2 + $anim-speed / 10 * ($i - 1)
+      }
     }
   }
 }
@@ -110,11 +156,17 @@ body {
   height: $contact-height;
   overflow: hidden;
 
-  p {
-    font-size: 1.3rem;
-    line-height: $contact-height;
+  .text {
     flex-grow: 1;
-    text-align: right;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+
+    p {
+      font-size: 1.5vw;
+      line-height: 2vw;
+      text-align: right;
+    }
   }
 
   .image {
