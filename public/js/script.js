@@ -3,36 +3,52 @@ const secToFPS = sec => Math.floor(sec * FPS)
 const ANIM_SPEED = 1000
 
 // Inclusive
-function randInt(min, max) {
+function randInt (min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+// Exponential tween
+function exponent (x) {
+	return Math.pow(2, 10 * (x - 1))
 }
 
 // Disrupt message
 
 class DisruptedText {
-  constructor (string, animTime) {
+  constructor (string, animTime, useExponent = false) {
     this.frame = 0
     this.string = string
     this.chars = []
     this.scrambleSpd = secToFPS(0.1)
+    this.exponential = useExponent
 
-    this.obfuscatedChars = '!@#$%^&*123456789'
+    this.obfuscatedChars = 'abcdefghijklmnopqrstuvqxyz1234567890'
 
     for (let char of string) {
-      let showFrame = randInt(0, animTime * 0.75)
-      let stopFrame = randInt(animTime - showFrame, animTime)
+      let showFrame = randInt(0, animTime * 0.3)
+      let stopFrame
+
+      if (this.useExponent) {
+        // Exponential effect trail off
+        let pct = exponent(Math.random())
+        stopFrame = pct * Math.floor(animTime - showFrame) + showFrame
+      } else {
+        stopFrame = randInt(animTime - showFrame, showFrame)
+      }
+
       this.chars.push({
         current: ' ',
         target: char,
         showFrame: showFrame,
-        stopFrame: stopFrame
+        stopFrame: stopFrame,
+        phaseOffset: randInt(0, this.scrambleSpd - 1)
       })
     }
   }
 
   getRandomChar () {
-    let char = randInt(0, this.obfuscatedChars.length)
-    return (char === this.obfuscatedChars.length ? '' : this.obfuscatedChars[char])
+    let char = randInt(0, this.obfuscatedChars.length - 1)
+    return this.obfuscatedChars[char]
   }
 
   update () {
@@ -43,7 +59,7 @@ class DisruptedText {
       if (char.target !== ' ') {
         if (this.frame >= char.showFrame && this.frame < char.stopFrame) {
           // Obfuscate chars
-          if (this.frame % this.scrambleSpd === 0) {
+          if ((this.frame + char.phaseOffset) % Math.floor(this.scrambleSpd) === 0) {
             char.current = this.getRandomChar()
             didUpdate = true
           }
@@ -55,6 +71,7 @@ class DisruptedText {
     }
 
     this.frame++
+    this.scrambleSpd += 1 / FPS
     return didUpdate
   }
 
@@ -72,7 +89,7 @@ class DisruptMessage {
     this.message = message
 
     this.obfuscatedName = new DisruptedText(name, secToFPS(1))
-    this.obfuscatedMessage = new DisruptedText(message, secToFPS(2))
+    this.obfuscatedMessage = new DisruptedText(message, secToFPS(3), message.length > 25)
 
     this.elem = null
     this.profilePic = new Image()
@@ -118,8 +135,12 @@ class DisruptMessage {
     // Expand
     window.setTimeout(() => {
       this.elem.classList.remove('pic-only')
-      this.animateText = true
     }, ANIM_SPEED)
+
+    // Show text
+    window.setTimeout(() => {
+      this.animateText = true
+    }, ANIM_SPEED * 1.2)
 
     // Move to side
     window.setTimeout(() => {

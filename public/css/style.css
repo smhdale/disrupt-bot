@@ -1,4 +1,5 @@
-@import url("https://fonts.googleapis.com/css?family=Karla:100,400,700");
+@import url("https://fonts.googleapis.com/css?family=Inconsolata");
+@import url("https://fonts.googleapis.com/css?family=Karla");
 @import url("https://fonts.googleapis.com/css?family=Saira+Condensed");
 * {
   margin: 0;
@@ -59,17 +60,19 @@ body {
     flex-direction: column;
     justify-content: center; }
     .message .message-details .user-name {
-      font-family: 'Saira Condensed', Karla, sans-serif;
+      font-family: 'Saira Condensed', sans-serif;
       line-height: 4.4vw;
-      font-size: 4vw; }
+      font-size: 4vw;
+      padding: 0.1vw 0; }
     .message .message-details .user-message {
-      line-height: 3.3vw;
-      max-height: 13.2vw;
+      font-family: Inconsolata, monospace;
+      line-height: 3.1vw;
+      max-height: 12.4vw;
       overflow: hidden;
       text-overflow: ellipsis;
       padding-bottom: 0.2vw;
       box-sizing: content-box;
-      font-size: 3vw;
+      font-size: 2.8vw;
       display: -webkit-box;
       -webkit-line-clamp: 4;
       -webkit-box-orient: vertical; }
@@ -140,17 +143,27 @@ body {
   overflow: hidden;
   background-color: #0f142c;
   flex-grow: 1; }
+  #main > canvas {
+    opacity: 0.2;
+    filter: contrast(1.75); }
 
-#orb {
+#orb-container {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 68vh;
+  width: 81.6vh;
   height: 68vh;
+  display: flex;
+  flex-direction: row;
+  justify-content: center; }
+
+#orb {
   background-image: url("../images/marble.jpg");
   border-radius: 45vmin;
   background-size: cover;
+  width: 68vh;
+  height: 68vh;
   opacity: .4; }
 
 #noise-overlay {

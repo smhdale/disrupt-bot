@@ -3,13 +3,16 @@
 
 <head>
   <title>D1SRUP7 WALL</title>
+  <link rel="shortcut icon" type="image/png" href="favicon.png"/>
   <link rel="stylesheet" type="text/css" href="css/style.css">
   <script src="https://js.pusher.com/4.1/pusher.min.js"></script>
 </head>
 
 <body>
   <div id="main">
-    <div id="orb"></div>
+    <div id="orb-container" class="disrupt dsrpt-rgb-shift-2 loop">
+      <div id="orb"></div>
+    </div>
 
     <!-- Messages, populated via JavaScript & Pusher -->
     <div id="main-message"></div>
@@ -30,6 +33,7 @@
     </div>
   </div>
 
+  <script type="text/javascript" src="js/disrupt.js"></script>
   <script type="text/javascript" src="js/script.js"></script>
 </body>
 
