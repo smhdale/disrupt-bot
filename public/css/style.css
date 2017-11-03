@@ -24,6 +24,36 @@ body {
   display: flex;
   flex-direction: column; }
 
+#menu {
+  position: relative;
+  display: inline-block;
+  width: 1.9vw;
+  height: 1.9vw;
+  border-radius: 50%;
+  background-color: #0084FF;
+  vertical-align: middle;
+  margin-top: -0.1vw; }
+  #menu .menu-bar {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 50%;
+    height: 7.5%;
+    background-color: #fff;
+    transform: translate(-50%, -50%); }
+    #menu .menu-bar:before, #menu .menu-bar:after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background-color: #fff; }
+    #menu .menu-bar:before {
+      transform: translateY(-200%); }
+    #menu .menu-bar:after {
+      transform: translateY(200%); }
+
 .message {
   position: absolute;
   display: flex;
@@ -130,7 +160,7 @@ body {
     justify-content: center; }
     #contact .text p {
       font-size: 1.5vw;
-      line-height: 2vw;
+      line-height: 2.3vw;
       text-align: right; }
   #contact .image {
     height: 100%;
