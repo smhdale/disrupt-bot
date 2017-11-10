@@ -10,6 +10,7 @@ const db = require('./db')
 const paths = require('./paths')
 const disrupt = require('./disrupt')
 const pusher = require('./pusher')
+const personality = require('./personality')
 
 const padZero = n => (n < 10 ? '0' : '') + n
 function log (str) {
@@ -146,7 +147,7 @@ function handleTense (before, dayOf, after) {
  * Message handling
  */
 
-function findBadWords (str) {
+function findSplitBadWords (str) {
   let joiners = [ ' ', '.', ',', '-' ]
 
   for (let word of badWordsList) {
@@ -161,7 +162,7 @@ function findBadWords (str) {
 }
 
 function detectProfanity (str) {
-  return (swearjar.profane(str) || findBadWords(str))
+  return (swearjar.profane(str) || findSplitBadWords(str))
 }
 
 function getNLPEntity (nlp, name) {
@@ -184,6 +185,7 @@ async function handleMessageReceived (event) {
   const nlpThanks = getNLPEntity(message.nlp, 'thanks')
   const nlpGreeting = getNLPEntity(message.nlp, 'greetings')
   const nlpIntent = getNLPEntity(message.nlp, 'intent')
+  const nlpPersonality = getNLPEntity(message.nlp, 'personality')
 
   const confidenceThreshold = 0.75
 
@@ -282,6 +284,16 @@ async function handleMessageReceived (event) {
         // Intent not handled
         return sendFallbackMessage(senderID)
     }
+  } else if (nlpPersonality && nlpPersonality.confidence > confidenceThreshold) {
+    // Get custom message
+    let personalityMessage = personality.getPersonalityResponse(user, nlpPersonality.value)
+
+    // Null if failed
+    if (personalityMessage === null) {
+      return sendFallbackMessage(senderID)
+    }
+    // Send the message
+    return api.sendTextMessage(senderID, personalityMessage)
   } else {
     // Bot isn't confident enough with message intent and no greeting was sent
     if (!didResponse) {
@@ -452,12 +464,26 @@ function sendExhibitionLocation (fbid) {
   })
 }
 
+/**
+ * Notifies the user that they said something inappropriate
+ */
 function handleInappropriateMessage (user) {
-  let message = choose([
-    `That isn't very nice, ${user.first_name}.`,
-    `Watch your tone, ${user.first_name}.`,
-    `Hey ${user.first_name}, think before saying that again.`
-  ])
+  let message
+
+  // Handle someone trying to send bad words to the wall
+  if (user.send_disruption && user.send_disruption === true) {
+    message = choose([
+      `We can't show that on the wall, ${user.first_name}. Try something else.`,
+      `Come on, ${user.first_name}, you know that's not appropriate. Try something else.`,
+      `Do you really want people to see that you typed that, ${user.first_name}? Try something else.`
+    ])
+  } else {
+    message = choose([
+      `That isn't very nice, ${user.first_name}.`,
+      `Watch your tone, ${user.first_name}.`,
+      `Hey ${user.first_name}, think before saying that again.`
+    ])
+  }
 
   return api.sendTextMessage(user.id, message)
 }
