@@ -56,6 +56,18 @@ async function initSettings () {
   }
 }
 
+const MENU_CMDS = [
+  {
+    command: 'DISRUPT_USER',
+    regex: /^[^\w]*disrupt me[^\w]*$/i
+  },
+  {
+    command: 'SEND_DISRUPTION',
+    regex: /^[^\w]*send a disruption[^\w]*$/i
+  }
+]
+
+// Only uncomment and run once per settings change
 // initSettings()
 
 /**
@@ -242,6 +254,15 @@ async function handleMessageReceived (event) {
     } catch (e) {
       console.error(e)
       return sendDisruptError(user.id)
+    }
+  }
+
+  // Next, look for menu commands that have been typed
+  // instead of selected from the menu
+  for (let cmd of MENU_CMDS) {
+    if (cmd.regex.test(messageText)) {
+      // A command was typed
+      return handlePostbackPayload(user, cmd.command)
     }
   }
 
@@ -562,6 +583,20 @@ async function getUser (fbid) {
  * Postback handling
  */
 
+function handlePostbackPayload (user, postback) {
+  switch (postback) {
+    case 'SHOW_GREETING':
+      return sendIntroMessage(user)
+    case 'DISRUPT_USER':
+      return doProfileDisrupt(user.id)
+    case 'SEND_DISRUPTION':
+      return checkDisruptCode(user)
+    default:
+      log(`Unhandled postback type: ${postback}`)
+      return
+  }
+}
+
 async function handlePostbackReceived (event) {
   const senderID = event.sender.id
   const postback = event.postback.payload
@@ -576,18 +611,7 @@ async function handlePostbackReceived (event) {
   }
 
   log(`Postback from ${user.first_name} ${user.last_name}: ${postback}`)
-
-  switch (postback) {
-    case 'SHOW_GREETING':
-      return sendIntroMessage(user)
-    case 'DISRUPT_USER':
-      return doProfileDisrupt(senderID)
-    case 'SEND_DISRUPTION':
-      return checkDisruptCode(user)
-    default:
-      log(`Unhandled postback type: ${postback}`)
-      return
-  }
+  return handlePostbackPayload(user, postback)
 }
 
 /**
