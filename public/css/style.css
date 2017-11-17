@@ -152,7 +152,8 @@ body {
   display: flex;
   flex-direction: row;
   height: 15vh;
-  overflow: hidden; }
+  overflow: hidden;
+  background-color: #000; }
   #contact .text {
     flex-grow: 1;
     display: flex;
@@ -161,7 +162,8 @@ body {
     #contact .text p {
       font-size: 1.5vw;
       line-height: 2.3vw;
-      text-align: right; }
+      text-align: center;
+      color: #fff; }
   #contact .image {
     height: 100%;
     padding: 1.5vh; }

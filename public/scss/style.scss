@@ -196,6 +196,7 @@ body {
   flex-direction: row;
   height: $contact-height;
   overflow: hidden;
+  background-color: #000;
 
   .text {
     flex-grow: 1;
@@ -206,7 +207,8 @@ body {
     p {
       font-size: 1.5vw;
       line-height: 2.3vw;
-      text-align: right;
+      text-align: center;
+      color: #fff;
     }
   }
 
