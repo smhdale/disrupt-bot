@@ -530,7 +530,7 @@ function doProfileDisrupt (fbid) {
 }
 
 async function checkDisruptCode (user) {
-  if (!user.await_code || user.await_code < 2) {
+  if (false/*!user.await_code || user.await_code < 2*/) {
     // Add code listener flag to user account
     try {
       await db.updateUser(user, { await_code: 1 })
